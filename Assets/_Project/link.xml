@@ -1,0 +1,9 @@
+<!-- Защита собственных сборок от вырезания кода в WebGL/IL2CPP.
+     Newtonsoft создаёт DTO через рефлексию, и линкер не видит эти вызовы. -->
+<linker>
+  <assembly fullname="LiarsBar.Core" preserve="all"/>
+  <assembly fullname="LiarsBar.Application" preserve="all"/>
+  <assembly fullname="LiarsBar.Infrastructure" preserve="all"/>
+  <assembly fullname="LiarsBar.Networking" preserve="all"/>
+  <assembly fullname="LiarsBar.Networking.SmokeTest" preserve="all"/>
+</linker>

@@ -1,0 +1,23 @@
+{
+    "name": "LiarsBar.Networking.SmokeTest",
+    "rootNamespace": "LiarsBar.Networking.SmokeTest",
+    "references": [
+        "PhotonUnityNetworking",
+        "PhotonRealtime",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Photon3Unity3D.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
