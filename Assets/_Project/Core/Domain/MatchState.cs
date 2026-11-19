@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using LiarsBar.Core.Views;
 
 namespace LiarsBar.Core.Domain
 {
@@ -75,6 +76,31 @@ namespace LiarsBar.Core.Domain
 
         public void MarkSubjectUsed(string subjectId) => _usedSubjectIds.Add(subjectId);
         public void ResetUsedSubjects() => _usedSubjectIds.Clear();
+
+        /// <summary>
+        /// Снимок глазами места seatId: публичное состояние + рука только этого игрока.
+        /// seatId, которого нет за столом (например -1), даёт снимок зрителя без руки.
+        /// </summary>
+        public PlayerView SnapshotFor(int seatId)
+        {
+            var ended = Phase == MatchPhase.Ended;
+            var seats = _players
+                .Select(p => new SeatInfo(p.SeatId, p.Name, p.IsAlive, p.Hand.Count, p.Revolver.Shooted,
+                    p.Revolver.Chambers, ended ? p.Stats.Clone() : null))
+                .ToList()
+                .AsReadOnly();
+
+            var lastPlay = LastPlay == null
+                ? null
+                : new TablePlayView(LastPlay.SeatId, LastPlay.Cards.Select(CardFace.From).ToList().AsReadOnly());
+
+            IReadOnlyList<HandCard> hand = TryGetPlayer(seatId, out var viewer)
+                ? viewer.Hand.Cards.Select(HandCard.From).ToList().AsReadOnly()
+                : (IReadOnlyList<HandCard>)Array.Empty<HandCard>();
+
+            return new PlayerView(viewer != null ? seatId : -1, Phase, RoundNumber, CurrentSubject?.Id,
+                CurrentSubject?.Title, CurrentSeat, ForcedAccusation, WinnerSeat, seats, lastPlay, hand);
+        }
 
         /// <summary>Глубокая копия: нужна движку, чтобы невалидное действие не меняло состояние, и тестам.</summary>
         public MatchState Clone()
