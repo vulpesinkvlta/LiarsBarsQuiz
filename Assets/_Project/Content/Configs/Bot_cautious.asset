@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed6185fde1585b64dbe0df0a8103efe8, type: 3}
+  m_Name: Bot_cautious
+  m_EditorClassIdentifier: LiarsBar.Infrastructure::LiarsBar.Infrastructure.Config.BotProfileAsset
+  _profile:
+    Id: cautious
+    DisplayName: "\u041E\u0441\u0442\u043E\u0440\u043E\u0436\u043D\u044B\u0439"
+    KnowEasy: 0.7
+    KnowMedium: 0.45
+    KnowHard: 0.2
+    AccuseThreshold: 0.7
+    ThresholdPerShot: 0.05
+    MixLieChance: 0.1
+    UnknownLieChance: 0.35
+    LowCardsLimit: 1
+    LowCardsBonus: 0.15
+    TwoCardsBonus: 0.1
