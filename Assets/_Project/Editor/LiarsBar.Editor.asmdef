@@ -2,6 +2,9 @@
     "name": "LiarsBar.Editor",
     "rootNamespace": "LiarsBar.Editor",
     "references": [
+        "LiarsBar.Core",
+        "LiarsBar.Infrastructure",
+        "Unity.TextMeshPro",
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner"
     ],

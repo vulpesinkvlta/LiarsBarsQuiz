@@ -1,0 +1,146 @@
+{
+  "id": "smartphone",
+  "title": "Смартфон",
+  "facts": [
+    {
+      "id": "smartphone_01",
+      "text": "Первым смартфоном считают IBM Simon 1994 года",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "У него был сенсорный экран, почта, календарь и даже приложения"
+    },
+    {
+      "id": "smartphone_02",
+      "text": "Первый iPhone вышел в 2007 году",
+      "isTrue": true,
+      "difficulty": 1,
+      "explanation": "Стив Джобс представил его в январе, в продажу он поступил летом"
+    },
+    {
+      "id": "smartphone_03",
+      "text": "Первый звонок с мобильного телефона сделали в 1973 году",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "Инженер Motorola Мартин Купер позвонил с улицы Нью-Йорка конкурентам"
+    },
+    {
+      "id": "smartphone_04",
+      "text": "Смартфон мощнее компьютеров, на которых летали к Луне",
+      "isTrue": true,
+      "difficulty": 1,
+      "explanation": "Бортовой компьютер «Аполлона» был в тысячи раз медленнее"
+    },
+    {
+      "id": "smartphone_05",
+      "text": "Сенсорный экран смартфона реагирует на электрический заряд пальца",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "Поэтому в обычных перчатках он не срабатывает"
+    },
+    {
+      "id": "smartphone_06",
+      "text": "Смартфон понимает, как его повернули, с помощью акселерометра",
+      "isTrue": true,
+      "difficulty": 1,
+      "explanation": "Датчик чувствует направление силы тяжести и поворачивает изображение"
+    },
+    {
+      "id": "smartphone_07",
+      "text": "Первая SMS в 1992 году гласила «Merry Christmas»",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "Её отправили инженеры компании Vodafone в Великобритании"
+    },
+    {
+      "id": "smartphone_08",
+      "text": "Android сначала разрабатывали для цифровых фотоаппаратов",
+      "isTrue": true,
+      "difficulty": 3,
+      "explanation": "Потом создатели переключились на телефоны, а в 2005 году компанию купил Google"
+    },
+    {
+      "id": "smartphone_09",
+      "text": "В каждом смартфоне есть немного золота",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "Обычно несколько сотых грамма в контактах и микросхемах"
+    },
+    {
+      "id": "smartphone_10",
+      "text": "Литий-ионный аккумулятор теряет ёмкость даже без использования",
+      "isTrue": true,
+      "difficulty": 2,
+      "explanation": "Химические процессы в батарее идут постоянно, особенно в жаре"
+    },
+    {
+      "id": "smartphone_11",
+      "text": "Первый iPhone поддерживал 4G",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Он не поддерживал даже 3G, только медленный EDGE"
+    },
+    {
+      "id": "smartphone_12",
+      "text": "Литиевую батарею полезно разряжать до нуля перед зарядкой",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Это вредно. «Эффект памяти» был у старых никель-кадмиевых батарей"
+    },
+    {
+      "id": "smartphone_13",
+      "text": "Первый мобильный телефон весил около 100 граммов",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Первый мобильный Motorola весил около килограмма"
+    },
+    {
+      "id": "smartphone_14",
+      "text": "Систему Android создала компания Apple",
+      "isTrue": false,
+      "difficulty": 1,
+      "explanation": "Android создал стартап Android Inc., его купил Google"
+    },
+    {
+      "id": "smartphone_15",
+      "text": "В режиме полёта GPS в смартфоне не работает",
+      "isTrue": false,
+      "difficulty": 3,
+      "explanation": "GPS только принимает сигнал спутников, поэтому обычно работает и в режиме полёта"
+    },
+    {
+      "id": "smartphone_16",
+      "text": "Сенсорный экран впервые появился в iPhone",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Сенсорные телефоны были задолго до него, например IBM Simon 1994 года"
+    },
+    {
+      "id": "smartphone_17",
+      "text": "Слово «смартфон» придумали в Google",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Слово появилось в 1990-х, одним из первых так назвали телефон Ericsson"
+    },
+    {
+      "id": "smartphone_18",
+      "text": "Первую SMS отправили с одного телефона на другой",
+      "isTrue": false,
+      "difficulty": 3,
+      "explanation": "Её отправили с компьютера на телефон, набирать текст на телефонах тогда было нельзя"
+    },
+    {
+      "id": "smartphone_19",
+      "text": "Магнит может стереть память смартфона",
+      "isTrue": false,
+      "difficulty": 2,
+      "explanation": "Флеш-память не магнитная, обычные магниты ей не вредят"
+    },
+    {
+      "id": "smartphone_20",
+      "text": "Сегодня в мире около 100 миллионов смартфонов",
+      "isTrue": false,
+      "difficulty": 1,
+      "explanation": "Смартфонами пользуются больше 4 миллиардов человек"
+    }
+  ]
+}
