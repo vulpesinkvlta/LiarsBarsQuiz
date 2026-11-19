@@ -1,0 +1,20 @@
+{
+    "name": "LiarsBar.Bootstrap",
+    "rootNamespace": "LiarsBar.Bootstrap",
+    "references": [
+        "LiarsBar.Core",
+        "LiarsBar.Application",
+        "LiarsBar.Infrastructure",
+        "LiarsBar.Networking",
+        "LiarsBar.Presentation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

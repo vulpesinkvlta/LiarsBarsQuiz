@@ -1,0 +1,22 @@
+{
+    "name": "LiarsBar.Networking",
+    "rootNamespace": "LiarsBar.Networking",
+    "references": [
+        "LiarsBar.Core",
+        "LiarsBar.Application",
+        "PhotonUnityNetworking",
+        "PhotonRealtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Photon3Unity3D.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
