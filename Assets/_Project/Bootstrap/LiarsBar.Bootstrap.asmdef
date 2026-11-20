@@ -6,7 +6,8 @@
         "LiarsBar.Application",
         "LiarsBar.Infrastructure",
         "LiarsBar.Networking",
-        "LiarsBar.Presentation"
+        "LiarsBar.Presentation",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
