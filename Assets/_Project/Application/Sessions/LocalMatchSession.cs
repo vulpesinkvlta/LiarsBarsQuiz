@@ -36,7 +36,8 @@ namespace LiarsBar.Application.Sessions
         /// <summary>Действие бота или удалённого игрока отклонено и заменено запасным (для логов).</summary>
         public event Action<int, ActionError> ControllerActionReplaced;
 
-        public int ViewerSeat { get; }
+        private readonly bool _followHumanTurn;
+        public int ViewerSeat { get; private set; }
         public PlayerView CurrentView { get; private set; }
 
         /// <summary>Полное состояние — только для Application (хост, тесты). UI его не получает.</summary>
@@ -47,7 +48,7 @@ namespace LiarsBar.Application.Sessions
         public bool IsEnded => _engine.State?.Phase == MatchPhase.Ended;
 
         public LocalMatchSession(MatchEngine engine, MatchSettings settings,
-            IReadOnlyDictionary<int, ISeatController> controllers, int viewerSeat)
+            IReadOnlyDictionary<int, ISeatController> controllers, int viewerSeat, bool followHumanTurn = false)
         {
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -61,6 +62,7 @@ namespace LiarsBar.Application.Sessions
                 throw new ArgumentException($"Viewer seat {viewerSeat} is not at the table.", nameof(viewerSeat));
 
             _controllers = controllers.ToDictionary(kv => kv.Key, kv => kv.Value);
+            _followHumanTurn = followHumanTurn;
             ViewerSeat = viewerSeat;
         }
 
@@ -202,6 +204,11 @@ namespace LiarsBar.Application.Sessions
             EventsRaised?.Invoke(events);
             if (_disposed) return;
 
+            if (_followHumanTurn && _engine.State.Phase == MatchPhase.AwaitingAction)
+            {
+                var activeSeat = _engine.State.CurrentSeat;
+                ViewerSeat = _controllers[activeSeat] is LocalHumanSeat ? activeSeat : -1;
+            }
             CurrentView = _engine.SnapshotFor(ViewerSeat);
             ViewChanged?.Invoke(CurrentView);
             if (_disposed) return;

@@ -39,13 +39,15 @@ namespace LiarsBar.Application.Sessions
         public LocalMatchSession Create(GameModeSettings settings)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            if (settings.Mode != GameMode.VsBots)
+            if (settings.Mode != GameMode.VsBots && settings.Mode != GameMode.HotSeat)
                 throw new NotSupportedException($"Mode {settings.Mode} is not supported yet.");
 
             var slots = settings.Slots;
             if (slots.Count < _config.MinPlayers || slots.Count > _config.MaxPlayers)
                 throw new ArgumentException($"Players must be {_config.MinPlayers}-{_config.MaxPlayers}, got {slots.Count}.", nameof(settings));
-            if (slots.Count(s => !s.IsBot) != 1)
+            if (slots.Any(s => s == null) || slots.All(s => s.IsBot))
+                throw new ArgumentException("At least one human is required.", nameof(settings));
+            if (settings.Mode == GameMode.VsBots && slots.Count(s => !s.IsBot) != 1)
                 throw new ArgumentException("Mode VsBots needs exactly one human.", nameof(settings));
 
             var seed = settings.Seed ?? SeededRandom.CreateUnseeded().Next(int.MaxValue);
@@ -79,12 +81,12 @@ namespace LiarsBar.Application.Sessions
                     var name = UniqueName(string.IsNullOrWhiteSpace(slot.Name) ? DefaultHumanName : slot.Name.Trim(), names);
                     seats.Add(new SeatSetup(seatId, name));
                     controllers[seatId] = new LocalHumanSeat(seatId, name);
-                    viewer = seatId;
+                    if (viewer < 0) viewer = seatId;
                 }
             }
 
             var engine = new MatchEngine(_config, _subjects, new SeededRandom(seed * 31 + 7));
-            return new LocalMatchSession(engine, new MatchSettings(seats), controllers, viewer);
+            return new LocalMatchSession(engine, new MatchSettings(seats), controllers, viewer, followHumanTurn: settings.Mode == GameMode.HotSeat);
         }
 
         private static string UniqueName(string name, HashSet<string> taken)

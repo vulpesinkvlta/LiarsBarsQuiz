@@ -60,13 +60,25 @@ namespace LiarsBar.Application.Tests
         }
 
         [Test]
+        public void HotSeat_MixedTable_PlaysToWinner()
+        {
+            var timer = new ManualTimer();
+            var settings = new GameModeSettings(GameMode.HotSeat,
+                new[] { PlayerSlot.Human("Лена"), PlayerSlot.Bot(), PlayerSlot.Human("Иван") }) { Seed = 7 };
+            using var session = Factory(timer).Create(settings);
+            session.Start();
+            PlayToEnd(session, timer);
+            Assert.IsTrue(session.IsEnded);
+        }
+
+        [Test]
         public void InvalidSettings_Throw()
         {
             var factory = Factory(new ManualTimer());
             Assert.Throws<ArgumentException>(() => factory.Create(GameModeSettings.VsBots("A", 0)));
             Assert.Throws<ArgumentException>(() => factory.Create(GameModeSettings.VsBots("A", 6)));
             Assert.Throws<NotSupportedException>(() =>
-                factory.Create(new GameModeSettings(GameMode.HotSeat, new[] { PlayerSlot.Human("A"), PlayerSlot.Human("B") })));
+                factory.Create(new GameModeSettings(GameMode.Online, new[] { PlayerSlot.Human("A"), PlayerSlot.Human("B") })));
         }
     }
 }

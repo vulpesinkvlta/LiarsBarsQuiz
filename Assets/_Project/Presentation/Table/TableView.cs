@@ -38,6 +38,8 @@ namespace LiarsBar.Presentation.Table
 
         /// <summary>«Новая партия» в окне конца партии.</summary>
         public event Action RestartClicked;
+        public event Action ExitClicked;
+        public event Action GameOverShown;
 
         public static TableView Create(TMP_FontAsset font)
         {
@@ -95,8 +97,15 @@ namespace LiarsBar.Presentation.Table
             Ui.Anchor((RectTransform)_liarButton.transform, 0.72f, 0.10f, 0.98f, 0.19f);
             _liarButton.onClick.AddListener(() => LiarClicked?.Invoke());
 
+            var exit = Ui.Button("Exit", root, "Выйти в меню", 26, out _);
+            Ui.Anchor((RectTransform)exit.transform, 0.72f, 0.015f, 0.98f, 0.085f);
+            exit.onClick.AddListener(() => ExitClicked?.Invoke());
+
             _reveal = BuildModal(root, "Reveal", "Далее", () => RevealClosed?.Invoke(), out _revealText);
             _gameOver = BuildModal(root, "GameOver", "Новая партия", () => RestartClicked?.Invoke(), out _gameOverText);
+            var menu = Ui.Button("Menu", _gameOver.transform, "В меню", 30, out _);
+            Ui.Anchor((RectTransform)menu.transform, 0.4f, 0.012f, 0.6f, 0.09f);
+            menu.onClick.AddListener(() => ExitClicked?.Invoke());
             _gameOverText.alignment = TextAlignmentOptions.Center;
             _gameOverText.fontSize = 44;
         }
@@ -188,6 +197,7 @@ namespace LiarsBar.Presentation.Table
             _gameOverText.text = text;
             _gameOver.SetActive(true);
             _gameOver.transform.SetAsLastSibling();
+            GameOverShown?.Invoke();
         }
     }
 }

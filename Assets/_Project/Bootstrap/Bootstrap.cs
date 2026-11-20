@@ -6,6 +6,7 @@ using LiarsBar.Core.Config;
 using LiarsBar.Infrastructure.Config;
 using LiarsBar.Infrastructure.Content;
 using LiarsBar.Infrastructure.Timing;
+using LiarsBar.Presentation.Common;
 using LiarsBar.Presentation.Table;
 using TMPro;
 using UnityEngine;
@@ -14,7 +15,6 @@ namespace LiarsBar.Bootstrap
 {
     /// <summary>
     /// Composition Root: здесь собираются все зависимости и запускается игра.
-    /// Этап 6: сразу партия «1 человек + 3 бота» на сером столе; меню появится на этапе 7.
     /// </summary>
     public sealed class Bootstrap : MonoBehaviour
     {
@@ -40,17 +40,17 @@ namespace LiarsBar.Bootstrap
 
             if (_font == null) Debug.LogWarning("[Bootstrap] Font is not assigned: Cyrillic and ✓/✗ will not render.", this);
             _view = TableView.Create(_font);
-            _view.RestartClicked += StartMatch;
+            _view.transform.SetParent(transform, false);
+            var navigation = UiRoot.CreateCanvas("Navigation", transform, 1);
+            navigation.gameObject.AddComponent<ScreenRouter>().Initialize(_view, StartMatch, DisposeMatch, _playerName, _botCount);
         }
 
-        private void Start() => StartMatch();
-
-        private void StartMatch()
+        private void StartMatch(GameModeSettings settings)
         {
             DisposeMatch();
             _view.ResetView();
 
-            _session = _factory.Create(GameModeSettings.VsBots(_playerName, _botCount));
+            _session = _factory.Create(settings);
             _session.ControllerActionReplaced += (seat, error) =>
                 Debug.LogWarning($"[Session] Seat {seat}: action rejected ({error}), fallback move used.");
             _presenter = new TablePresenter(_session, _view, _config.MinCardsPerPlay, _config.MaxCardsPerPlay);
