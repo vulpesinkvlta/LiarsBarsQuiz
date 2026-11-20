@@ -107,6 +107,7 @@ namespace LiarsBar.Application.Tests
             {
                 if (++steps > maxSteps) throw new InvalidOperationException("Match did not finish.");
                 var view = session.CurrentView;
+                if (session.ConfirmHumanTurn(view.CurrentSeat)) view = session.CurrentView;
                 if (view.IsMyTurn)
                 {
                     session.Submit(LocalMatchSession.FallbackAction(view));

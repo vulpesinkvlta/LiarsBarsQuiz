@@ -5,6 +5,8 @@
         "LiarsBar.Core",
         "LiarsBar.Application",
         "LiarsBar.Presentation",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

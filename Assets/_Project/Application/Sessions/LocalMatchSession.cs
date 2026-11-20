@@ -63,7 +63,19 @@ namespace LiarsBar.Application.Sessions
 
             _controllers = controllers.ToDictionary(kv => kv.Key, kv => kv.Value);
             _followHumanTurn = followHumanTurn;
-            ViewerSeat = viewerSeat;
+            ViewerSeat = followHumanTurn ? -1 : viewerSeat;
+        }
+
+        public bool ConfirmHumanTurn(int seatId)
+        {
+            if (!_followHumanTurn || _disposed || !_started || _busy || ViewerSeat >= 0 ||
+                _engine.State.Phase != MatchPhase.AwaitingAction || _engine.State.CurrentSeat != seatId ||
+                !(_controllers[seatId] is LocalHumanSeat)) return false;
+
+            ViewerSeat = seatId;
+            CurrentView = _engine.SnapshotFor(seatId);
+            ViewChanged?.Invoke(CurrentView);
+            return true;
         }
 
         public void Start()
@@ -93,7 +105,7 @@ namespace LiarsBar.Application.Sessions
                 return;
             }
 
-            if (!human.TrySubmit(action))
+            if ((_followHumanTurn && ViewerSeat != action.SeatId) || !human.TrySubmit(action))
                 Reject(new ActionError(ActionErrorCode.NotYourTurn, $"Seat {action.SeatId} is not expected to act now."));
         }
 
@@ -201,15 +213,15 @@ namespace LiarsBar.Application.Sessions
         private void Publish(IReadOnlyList<GameEvent> events)
         {
             _requestId++; // все старые запросы больше не актуальны
+            if (_followHumanTurn)
+            {
+                ViewerSeat = -1;
+                CurrentView = _engine.SnapshotFor(ViewerSeat);
+            }
             EventsRaised?.Invoke(events);
             if (_disposed) return;
 
-            if (_followHumanTurn && _engine.State.Phase == MatchPhase.AwaitingAction)
-            {
-                var activeSeat = _engine.State.CurrentSeat;
-                ViewerSeat = _controllers[activeSeat] is LocalHumanSeat ? activeSeat : -1;
-            }
-            CurrentView = _engine.SnapshotFor(ViewerSeat);
+            if (!_followHumanTurn) CurrentView = _engine.SnapshotFor(ViewerSeat);
             ViewChanged?.Invoke(CurrentView);
             if (_disposed) return;
 

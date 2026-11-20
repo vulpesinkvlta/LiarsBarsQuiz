@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
+using LiarsBar.Core.Events;
+using LiarsBar.Core.Views;
 using LiarsBar.Presentation.Common;
 using TMPro;
 using UnityEngine;
@@ -26,8 +30,23 @@ namespace LiarsBar.Presentation.Table
         private readonly Queue<string> _logLines = new Queue<string>();
         private Button _playButton;
         private Button _liarButton;
+        private GameObject _passDevice;
+        private TextMeshProUGUI _passTitle;
+        private TextMeshProUGUI _passButtonLabel;
+        private int _passSeat;
+        public event Action<int> PassConfirmed;
+
+        private Image _effect;
+        private TextMeshProUGUI _effectTitle;
+        private RectTransform _token;
+        private TextMeshProUGUI _symbol;
+        private readonly List<Image> _chambers = new List<Image>();
+        public bool IsPlayingEvent { get; internal set; }
+
         private GameObject _reveal;
         private TextMeshProUGUI _revealText;
+        private float _revealStartedAt;
+        private const float RevealDuration = 0.28f;
         private GameObject _gameOver;
         private TextMeshProUGUI _gameOverText;
 
@@ -101,6 +120,37 @@ namespace LiarsBar.Presentation.Table
             Ui.Anchor((RectTransform)exit.transform, 0.72f, 0.015f, 0.98f, 0.085f);
             exit.onClick.AddListener(() => ExitClicked?.Invoke());
 
+            var passPanel = Ui.Panel("PassDeviceView", root, Ui.PanelColor);
+            Ui.Anchor(passPanel.rectTransform, 0.02f, 0.10f, 0.70f, 0.46f);
+            _passDevice = passPanel.gameObject;
+            _passTitle = Ui.Label("Recipient", passPanel.transform, string.Empty, 32);
+            Ui.Anchor(_passTitle.rectTransform, 0.03f, 0.53f, 0.97f, 0.95f);
+            var confirm = Ui.Button("Confirm", passPanel.transform, string.Empty, 30, out _passButtonLabel);
+            Ui.Anchor((RectTransform)confirm.transform, 0.08f, 0.08f, 0.92f, 0.50f);
+            confirm.onClick.AddListener(() => PassConfirmed?.Invoke(_passSeat));
+            _passDevice.SetActive(false);
+
+            _effect = Ui.Panel("TableAnimation", root, Ui.PanelColor);
+            Ui.Anchor(_effect.rectTransform, 0.02f, 0.46f, 0.70f, 0.75f);
+            _effectTitle = Ui.Label("Event", _effect.transform, string.Empty, 35);
+            Ui.Anchor(_effectTitle.rectTransform, 0.02f, 0.02f, 0.98f, 0.40f);
+            _token = Ui.Rect("Token", _effect.transform);
+            _token.anchorMin = _token.anchorMax = new Vector2(0.5f, 0.70f);
+            _token.sizeDelta = new Vector2(90, 90);
+            _symbol = Ui.Label("Card", _token, "?", 46);
+            Ui.Stretch(_symbol.rectTransform);
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = i * Mathf.PI / 3f;
+                var chamber = Ui.Panel("Chamber", _token, Ui.TextDim);
+                var rt = chamber.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(15, 15);
+                rt.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 29f;
+                _chambers.Add(chamber);
+            }
+            _effect.gameObject.SetActive(false);
+
             _reveal = BuildModal(root, "Reveal", "Далее", () => RevealClosed?.Invoke(), out _revealText);
             _gameOver = BuildModal(root, "GameOver", "Новая партия", () => RestartClicked?.Invoke(), out _gameOverText);
             var menu = Ui.Button("Menu", _gameOver.transform, "В меню", 30, out _);
@@ -135,14 +185,29 @@ namespace LiarsBar.Presentation.Table
         /// <summary>Очистить стол перед новой партией.</summary>
         public void ResetView()
         {
+            _effect.gameObject.SetActive(false);
+            foreach (var seat in _seats) seat.transform.localRotation = Quaternion.identity;
+            IsPlayingEvent = false;
             _reveal.SetActive(false);
             _gameOver.SetActive(false);
+            _passDevice.SetActive(false);
             _logLines.Clear();
             _log.text = string.Empty;
             _hint.text = string.Empty;
             _playCaption.text = string.Empty;
             _tableCards.Show(Array.Empty<CardModel>());
             _hand.Show(Array.Empty<CardModel>());
+        }
+
+        public void SetPassDevice(int seat, string name)
+        {
+            _passSeat = seat;
+            if (seat >= 0)
+            {
+                _passTitle.text = $"Передайте устройство: {name}";
+                _passButtonLabel.text = $"Я {name}, показать карты";
+            }
+            _passDevice.SetActive(seat >= 0);
         }
 
         public void SetHeader(string text) => _header.text = text;
@@ -183,11 +248,97 @@ namespace LiarsBar.Presentation.Table
             _log.text = string.Join("\n", _logLines);
         }
 
+        internal IEnumerator Animate(GameEvent evt, PlayerView state)
+        {
+            if (!(evt is RoundStarted || evt is CardsPlayed || evt is LiarCalled || evt is RevolverShooted))
+                yield break;
+
+            _effect.gameObject.SetActive(true);
+            _effect.color = Ui.PanelColor;
+            _token.localRotation = Quaternion.identity;
+            _token.anchoredPosition = Vector2.zero;
+            bool wheel = evt is RevolverShooted;
+            _symbol.gameObject.SetActive(!wheel);
+            foreach (var chamber in _chambers) chamber.gameObject.SetActive(wheel);
+            Vector3 start = _token.position;
+            Vector3 end = start;
+
+            Vector3 SeatPosition(int seat)
+            {
+                // Seats use an evenly spaced horizontal row, including during the first deal.
+                var seats = state.Seats.ToList();
+                int index = seats.FindIndex(s => s.SeatId == seat);
+                var rect = _seatsRow.rect;
+                return _seatsRow.TransformPoint(new Vector2(
+                    Mathf.Lerp(rect.xMin, rect.xMax, (index + 0.5f) / seats.Count), rect.center.y));
+            }
+
+            if (evt is RoundStarted round)
+            {
+                _effectTitle.text = round.SubjectTitle;
+                _symbol.text = "▣";
+                foreach (var seat in round.HandSizes.Keys)
+                    yield return Fly(start, SeatPosition(seat), 0.16f);
+            }
+            else if (evt is CardsPlayed play)
+            {
+                _effectTitle.text = state.GetSeat(play.SeatId).Name;
+                _symbol.text = play.Cards.Count == 1 ? "▣" : "▣ ▣";
+                yield return Fly(SeatPosition(play.SeatId), end, 0.35f);
+            }
+            else if (evt is LiarCalled call)
+            {
+                _symbol.text = "!";
+                _effectTitle.text = state.GetSeat(call.AccuserSeat).Name + " — Лжец!";
+                var seat = _seats.ElementAtOrDefault(state.Seats.ToList().FindIndex(s => s.SeatId == call.AccuserSeat));
+                for (float t = 0; t < 0.48f; t += Time.unscaledDeltaTime)
+                {
+                    if (seat != null) seat.transform.localRotation = Quaternion.Euler(0, 0, 4f * Mathf.Sin(t * 58));
+                    yield return null;
+                }
+                if (seat != null) seat.transform.localRotation = Quaternion.identity;
+            }
+            else if (evt is RevolverShooted shot)
+            {
+                _effectTitle.text = state.GetSeat(shot.SeatId).Name + " · рулетка";
+                for (float t = 0; t < 0.55f; t += Time.unscaledDeltaTime)
+                {
+                    _token.localRotation = Quaternion.Euler(0, 0, 720 * Mathf.SmoothStep(0, 1, t / 0.55f));
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(1.2f);
+                _effectTitle.text = shot.Hit ? "БАХ! " + state.GetSeat(shot.SeatId).Name + " выбывает" :
+                    $"Щёлк… пусто. {shot.ShotsTaken}/{shot.Chambers}";
+                if (shot.Hit) _effect.color = new Color(0.72f, 0.22f, 0.12f);
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
+            _effect.gameObject.SetActive(false);
+        }
+
+        private IEnumerator Fly(Vector3 from, Vector3 to, float duration)
+        {
+            for (float t = 0; t < duration; t += Time.unscaledDeltaTime)
+            {
+                _token.position = Vector3.Lerp(from, to, Mathf.SmoothStep(0, 1, t / duration));
+                yield return null;
+            }
+            _token.position = to;
+        }
+
         public void ShowReveal(string text)
         {
             _revealText.text = text;
+            _revealStartedAt = Time.unscaledTime;
+            _revealText.rectTransform.localScale = new Vector3(0f, 1f, 1f);
             _reveal.SetActive(true);
             _reveal.transform.SetAsLastSibling();
+        }
+
+        private void Update()
+        {
+            if (_reveal == null || !_reveal.activeSelf || _revealText.rectTransform.localScale.x >= 1f) return;
+            var progress = Mathf.Clamp01((Time.unscaledTime - _revealStartedAt) / RevealDuration);
+            _revealText.rectTransform.localScale = new Vector3(Mathf.Sin(progress * Mathf.PI * 0.5f), 1f, 1f);
         }
 
         public void HideReveal() => _reveal.SetActive(false);

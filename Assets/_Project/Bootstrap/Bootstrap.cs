@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using LiarsBar.Application.Sessions;
+using LiarsBar.Application.Seats;
+using LiarsBar.Core.Views;
+using LiarsBar.Core.Domain;
 using LiarsBar.Core.Bots;
 using LiarsBar.Core.Config;
 using LiarsBar.Infrastructure.Config;
@@ -53,8 +56,26 @@ namespace LiarsBar.Bootstrap
             _session = _factory.Create(settings);
             _session.ControllerActionReplaced += (seat, error) =>
                 Debug.LogWarning($"[Session] Seat {seat}: action rejected ({error}), fallback move used.");
-            _presenter = new TablePresenter(_session, _view, _config.MinCardsPerPlay, _config.MaxCardsPerPlay);
+            _presenter = new TablePresenter(_session, _view, _config.MinCardsPerPlay, _config.MaxCardsPerPlay, this);
+            if (settings.Mode == GameMode.HotSeat)
+            {
+                _session.ViewChanged += UpdatePassDevice;
+                _view.PassConfirmed += ConfirmPass;
+                _presenter.PresentationChanged += RefreshPassDevice;
+            }
             _session.Start();
+        }
+
+        private void ConfirmPass(int seat) => _session.ConfirmHumanTurn(seat);
+
+        private void RefreshPassDevice() => UpdatePassDevice(_session.CurrentView);
+
+        private void UpdatePassDevice(PlayerView snapshot)
+        {
+            var seat = snapshot.CurrentSeat;
+            var waiting = !_presenter.IsAnimating && !_presenter.IsRevealOpen && snapshot.Phase == MatchPhase.AwaitingAction &&
+                snapshot.ViewerSeat < 0 && _session.Controllers[seat] is LocalHumanSeat;
+            _view.SetPassDevice(waiting ? seat : -1, waiting ? snapshot.GetSeat(seat).Name : null);
         }
 
         private IReadOnlyList<BotProfile> LoadBotProfiles()
@@ -65,6 +86,12 @@ namespace LiarsBar.Bootstrap
 
         private void DisposeMatch()
         {
+            if (_session != null)
+            {
+                _session.ViewChanged -= UpdatePassDevice;
+                _view.PassConfirmed -= ConfirmPass;
+                _presenter.PresentationChanged -= RefreshPassDevice;
+            }
             _presenter?.Dispose();
             _presenter = null;
             _session?.Dispose();

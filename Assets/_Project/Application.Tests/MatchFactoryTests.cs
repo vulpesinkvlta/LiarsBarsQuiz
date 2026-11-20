@@ -60,6 +60,23 @@ namespace LiarsBar.Application.Tests
         }
 
         [Test]
+        public void HotSeat_RequiresConfirmationAfterEveryMove()
+        {
+            var settings = new GameModeSettings(GameMode.HotSeat,
+                new[] { PlayerSlot.Human("Лена"), PlayerSlot.Human("Иван"), PlayerSlot.Human("Анна") }) { Seed = 7 };
+            using var session = Factory(new ManualTimer()).Create(settings);
+            session.Start();
+            var seat = session.CurrentView.CurrentSeat;
+            Assert.IsEmpty(session.CurrentView.MyHand);
+            Assert.IsFalse(session.ConfirmHumanTurn((seat + 1) % 3));
+            Assert.IsTrue(session.ConfirmHumanTurn(seat));
+            Assert.IsNotEmpty(session.CurrentView.MyHand);
+            session.Submit(LocalMatchSession.FallbackAction(session.CurrentView));
+            Assert.IsEmpty(session.CurrentView.MyHand);
+            Assert.AreEqual(-1, session.ViewerSeat);
+        }
+
+        [Test]
         public void HotSeat_MixedTable_PlaysToWinner()
         {
             var timer = new ManualTimer();

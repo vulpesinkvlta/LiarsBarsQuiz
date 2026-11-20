@@ -20,6 +20,7 @@ namespace LiarsBar.Presentation.Table
         private const string TrueColor = "#3FA34D";
         private const string FalseColor = "#D9534F";
 
+        private readonly UnityEngine.MonoBehaviour _animationHost;
         private readonly IMatchSession _session;
         private readonly ITableView _view;
         private readonly int _minCards;
@@ -31,13 +32,18 @@ namespace LiarsBar.Presentation.Table
         private bool _revealOpen;
         private bool _gameOverPending;
         private bool _disposed;
+        private bool _animating;
+        private UnityEngine.Coroutine _animation;
+        public bool IsAnimating => _animating;
+        public event Action PresentationChanged;
 
         public PlayerView Current => _current;
         public IReadOnlyList<string> Selection => _selection;
         public bool IsRevealOpen => _revealOpen;
 
-        public TablePresenter(IMatchSession session, ITableView view, int minCardsPerPlay = 1, int maxCardsPerPlay = 2)
+        public TablePresenter(IMatchSession session, ITableView view, int minCardsPerPlay = 1, int maxCardsPerPlay = 2, UnityEngine.MonoBehaviour animationHost = null)
         {
+            _animationHost = animationHost;
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _minCards = Math.Max(1, minCardsPerPlay);
@@ -58,6 +64,8 @@ namespace LiarsBar.Presentation.Table
         {
             if (_disposed) return;
             _disposed = true;
+            if (_animation != null && _view is TableView table)
+                (_animationHost ?? table).StopCoroutine(_animation);
             _session.EventsRaised -= OnEventsRaised;
             _session.ViewChanged -= OnViewChanged;
             _session.ActionRejected -= OnActionRejected;
@@ -75,9 +83,50 @@ namespace LiarsBar.Presentation.Table
             _current = view;
             var events = _pendingEvents.ToList();
             _pendingEvents.Clear();
+            if (_view is TableView table && events.Count > 0)
+            {
+                _animating = true;
+                _session.SetPresentationBusy(true);
+                _view.SetHand(Array.Empty<CardModel>());
+                _view.SetActions(false, false, false);
+                table.IsPlayingEvent = true;
+                _animation = (_animationHost ?? table).StartCoroutine(AnimateEvents(table, events));
+                return;
+            }
             HandleEvents(events);
+            ApplySnapshot();
+        }
 
-            var hand = new HashSet<string>(view.MyHand.Select(c => c.Id));
+        private System.Collections.IEnumerator AnimateEvents(TableView table, IReadOnlyList<GameEvent> events)
+        {
+            foreach (var e in events)
+            {
+                if (_disposed) yield break;
+                var line = Describe(e);
+                if (line != null) _view.AppendLog(line);
+                if (e is FactsRevealed)
+                {
+                    _revealOpen = true;
+                    _view.ShowReveal(RevealText(events));
+                    while (_revealOpen && !_disposed) yield return null;
+                }
+                else
+                {
+                    yield return table.Animate(e, _current);
+                }
+            }
+            if (_disposed) yield break;
+            table.IsPlayingEvent = false;
+            _animating = false;
+            ApplySnapshot();
+            if (events.OfType<MatchEnded>().Any()) ShowGameOver();
+            PresentationChanged?.Invoke();
+            _session.SetPresentationBusy(false);
+        }
+
+        private void ApplySnapshot()
+        {
+            var hand = new HashSet<string>(_current.MyHand.Select(c => c.Id));
             _selection.RemoveAll(id => !hand.Contains(id));
             Render();
         }
@@ -146,7 +195,7 @@ namespace LiarsBar.Presentation.Table
         private void OnCardClicked(string id)
         {
             var v = _current;
-            if (v == null || _revealOpen || !v.CanPlayCards || v.MyHand.All(c => c.Id != id)) return;
+            if (v == null || _animating || _revealOpen || !v.CanPlayCards || v.MyHand.All(c => c.Id != id)) return;
 
             if (!_selection.Remove(id))
             {
@@ -159,7 +208,7 @@ namespace LiarsBar.Presentation.Table
         private void OnPlayClicked()
         {
             var v = _current;
-            if (v == null || _revealOpen || !v.CanPlayCards) return;
+            if (v == null || _animating || _revealOpen || !v.CanPlayCards) return;
             if (_selection.Count < _minCards || _selection.Count > _maxCards) return;
 
             var cards = _selection.ToList();
@@ -170,7 +219,7 @@ namespace LiarsBar.Presentation.Table
         private void OnLiarClicked()
         {
             var v = _current;
-            if (v == null || _revealOpen || !v.CanCallLiar) return;
+            if (v == null || _animating || _revealOpen || !v.CanCallLiar) return;
             _selection.Clear();
             _session.Submit(new CallLiarAction(v.ViewerSeat));
         }
@@ -180,6 +229,7 @@ namespace LiarsBar.Presentation.Table
             if (!_revealOpen) return;
             _revealOpen = false;
             _view.HideReveal();
+            if (_animating) return;
             if (_gameOverPending)
             {
                 _gameOverPending = false;
@@ -246,14 +296,6 @@ namespace LiarsBar.Presentation.Table
                 ? $"Ложь найдена! В рулетку играет <b>{NameOf(revealed.ShooterSeat)}</b>."
                 : $"Всё правда! В рулетку играет <b>{NameOf(revealed.ShooterSeat)}</b>.");
 
-            var shot = events.OfType<RevolverShooted>().FirstOrDefault();
-            if (shot != null)
-                sb.AppendLine(shot.Hit
-                    ? $"<color={FalseColor}><b>БАХ!</b></color> {NameOf(shot.SeatId)} выбывает."
-                    : $"Щёлк… пусто. Выстрелов: {shot.ShotsTaken}/{shot.Chambers}.");
-
-            var ended = events.OfType<MatchEnded>().FirstOrDefault();
-            if (ended != null) sb.AppendLine().AppendLine($"<b>Победитель: {NameOf(ended.WinnerSeat)}</b>");
             return sb.ToString().TrimEnd();
         }
 
