@@ -104,8 +104,9 @@ namespace LiarsBar.Presentation.Table
                 if (_disposed) yield break;
                 var line = Describe(e);
                 if (line != null) _view.AppendLog(line);
-                if (e is FactsRevealed)
+                if (e is FactsRevealed facts)
                 {
+                    yield return table.FlipTableCards(facts);
                     _revealOpen = true;
                     _view.ShowReveal(RevealText(events));
                     while (_revealOpen && !_disposed) yield return null;
@@ -243,7 +244,21 @@ namespace LiarsBar.Presentation.Table
         {
             var v = _current;
             if (v == null) return;
-            _view.ShowGameOver($"Победитель: {NameOf(v.WinnerSeat)}\nРаундов сыграно: {v.RoundNumber}");
+            var text = new StringBuilder($"Победитель: {NameOf(v.WinnerSeat)}\nРаундов сыграно: {v.RoundNumber}");
+            AddAward("Лучший лжец", s => s.UncaughtLies);
+            AddAward("Детектор лжи", s => s.CorrectAccusations);
+            AddAward("Борис хрен попадёшь", s => s.ShotsSurvived);
+            _view.ShowGameOver(text.ToString());
+
+            void AddAward(string title, Func<PlayerStats, int> score)
+            {
+                var ranked = v.Seats.Where(s => s.Stats != null).ToList();
+                if (ranked.Count == 0) return;
+                int best = ranked.Max(s => score(s.Stats));
+                if (best == 0) return;
+                var winners = ranked.Where(s => score(s.Stats) == best).Select(s => s.Name);
+                text.AppendLine().Append(title).Append(" — ").Append(string.Join(", ", winners));
+            }
         }
 
         private void OnActionRejected(ActionError error)

@@ -152,7 +152,7 @@ namespace LiarsBar.Presentation.Table
             _effect.gameObject.SetActive(false);
 
             _reveal = BuildModal(root, "Reveal", "Далее", () => RevealClosed?.Invoke(), out _revealText);
-            _gameOver = BuildModal(root, "GameOver", "Новая партия", () => RestartClicked?.Invoke(), out _gameOverText);
+            _gameOver = BuildModal(root, "GameOver", "Сыграть ещё", () => RestartClicked?.Invoke(), out _gameOverText);
             var menu = Ui.Button("Menu", _gameOver.transform, "В меню", 30, out _);
             Ui.Anchor((RectTransform)menu.transform, 0.4f, 0.012f, 0.6f, 0.09f);
             menu.onClick.AddListener(() => ExitClicked?.Invoke());
@@ -309,10 +309,50 @@ namespace LiarsBar.Presentation.Table
                 yield return new WaitForSecondsRealtime(1.2f);
                 _effectTitle.text = shot.Hit ? "БАХ! " + state.GetSeat(shot.SeatId).Name + " выбывает" :
                     $"Щёлк… пусто. {shot.ShotsTaken}/{shot.Chambers}";
-                if (shot.Hit) _effect.color = new Color(0.72f, 0.22f, 0.12f);
+                if (shot.Hit)
+                {
+                    _effect.color = new Color(0.72f, 0.22f, 0.12f);
+                    yield return ShakeTable();
+                    _effect.color = Ui.PanelColor;
+                }
                 yield return new WaitForSecondsRealtime(0.8f);
             }
             _effect.gameObject.SetActive(false);
+        }
+
+        internal IEnumerator FlipTableCards(FactsRevealed revealed)
+        {
+            foreach (var fact in revealed.Facts)
+                yield return _tableCards.FlipRevealed(new CardModel(fact.Id, fact.Text, fact.IsTrue, false, false));
+            yield return new WaitForSecondsRealtime(0.35f);
+        }
+
+        private IEnumerator ShakeTable()
+        {
+            var panels = new List<RectTransform>();
+            var origins = new List<Vector2>();
+            foreach (RectTransform child in transform)
+            {
+                if (!child.gameObject.activeSelf) continue;
+                panels.Add(child);
+                origins.Add(child.anchoredPosition);
+            }
+            try
+            {
+                const float duration = 0.22f;
+                for (float t = 0; t < duration; t += Time.unscaledDeltaTime)
+                {
+                    float strength = 9f * (1f - t / duration);
+                    var offset = strength * new Vector2(Mathf.Sin(t * 110f), Mathf.Sin(t * 72f));
+                    for (int i = 0; i < panels.Count; i++) panels[i].anchoredPosition = origins[i] + offset;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < panels.Count; i++)
+                    if (panels[i] != null) panels[i].anchoredPosition = origins[i];
+            }
         }
 
         private IEnumerator Fly(Vector3 from, Vector3 to, float duration)

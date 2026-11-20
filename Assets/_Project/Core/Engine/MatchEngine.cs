@@ -43,7 +43,7 @@ namespace LiarsBar.Core.Engine
         public PlayerView SnapshotFor(int seatId) =>
             (State ?? throw new InvalidOperationException("Match is not started.")).SnapshotFor(seatId);
 
-        public ApplyResult Start(MatchSettings settings)
+        public ApplyResult Start(MatchSettings settings, IReadOnlyCollection<string> usedSubjects = null, Subject previousSubject = null)
         {
             if (settings == null) return ApplyResult.Fail(ActionErrorCode.InvalidSettings, "Settings are null.");
             if (State != null) return ApplyResult.Fail(ActionErrorCode.InvalidSettings, "Match is already started.");
@@ -76,7 +76,9 @@ namespace LiarsBar.Core.Engine
                     ? new Revolver(s.BulletIndex.Value, _config.RevolverChambers)
                     : Revolver.CreateRandom(_random, _config.RevolverChambers)));
 
-            var state = new MatchState(players);
+            var state = new MatchState(players) { CurrentSubject = previousSubject };
+            if (usedSubjects != null)
+                foreach (var id in usedSubjects) state.MarkSubjectUsed(id);
             var first = settings.FirstSeat ?? _random.Pick(state.Players).SeatId;
             var events = new List<GameEvent>();
             StartRound(state, first, events);

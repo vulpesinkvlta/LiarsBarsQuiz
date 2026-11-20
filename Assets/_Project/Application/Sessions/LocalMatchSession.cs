@@ -78,13 +78,15 @@ namespace LiarsBar.Application.Sessions
             return true;
         }
 
-        public void Start()
+        public void Start() => Start(null, null);
+
+        public void Start(IReadOnlyCollection<string> usedSubjects, Subject previousSubject)
         {
             ThrowIfDisposed();
             if (_started) throw new InvalidOperationException("Session is already started.");
             _started = true;
 
-            var result = _engine.Start(_settings);
+            var result = _engine.Start(_settings, usedSubjects, previousSubject);
             if (!result.IsSuccess) throw new InvalidOperationException($"Match failed to start: {result.Error}");
             Publish(result.Events);
         }

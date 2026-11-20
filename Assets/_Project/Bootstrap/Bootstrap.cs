@@ -28,6 +28,8 @@ namespace LiarsBar.Bootstrap
 
         private GameRulesConfig _config;
         private MatchFactory _factory;
+        private IReadOnlyCollection<string> _usedSubjects;
+        private Subject _lastSubject;
         private TableView _view;
         private LocalMatchSession _session;
         private TablePresenter _presenter;
@@ -63,7 +65,7 @@ namespace LiarsBar.Bootstrap
                 _view.PassConfirmed += ConfirmPass;
                 _presenter.PresentationChanged += RefreshPassDevice;
             }
-            _session.Start();
+            _session.Start(_usedSubjects, _lastSubject);
         }
 
         private void ConfirmPass(int seat) => _session.ConfirmHumanTurn(seat);
@@ -88,6 +90,11 @@ namespace LiarsBar.Bootstrap
         {
             if (_session != null)
             {
+                if (_session.State != null)
+                {
+                    _usedSubjects = _session.State.UsedSubjectIds.ToArray();
+                    _lastSubject = _session.State.CurrentSubject;
+                }
                 _session.ViewChanged -= UpdatePassDevice;
                 _view.PassConfirmed -= ConfirmPass;
                 _presenter.PresentationChanged -= RefreshPassDevice;
