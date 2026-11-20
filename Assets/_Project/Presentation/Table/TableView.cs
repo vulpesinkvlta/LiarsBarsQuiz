@@ -17,6 +17,49 @@ namespace LiarsBar.Presentation.Table
     /// </summary>
     public sealed class TableView : MonoBehaviour, ITableView
     {
+        private readonly List<Action<bool>> _layouts = new List<Action<bool>>();
+        private GridLayoutGroup _handGrid;
+        private GridLayoutGroup _seatGrid;
+        private Vector2 _layoutSize;
+
+        private void Place(RectTransform rect, Rect landscape, Rect portrait)
+        {
+            _layouts.Add(vertical =>
+            {
+                var area = vertical ? portrait : landscape;
+                Ui.Anchor(rect, area.xMin, area.yMin, area.xMax, area.yMax);
+            });
+        }
+
+        private static GridLayoutGroup Grid(RectTransform parent)
+        {
+            var grid = parent.gameObject.AddComponent<GridLayoutGroup>();
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.spacing = new Vector2(10, 10);
+            grid.childAlignment = TextAnchor.MiddleCenter;
+            return grid;
+        }
+
+        private void ResizeTable()
+        {
+            var size = ((RectTransform)transform).rect.size;
+            if (size == _layoutSize || size.x <= 0 || size.y <= 0) return;
+            _layoutSize = size;
+            bool vertical = size.y > size.x;
+            foreach (var layout in _layouts) layout(vertical);
+            FitGrid(_handGrid, vertical ? 2 : 5, vertical ? 3 : 1, CardView.Width, CardView.Height);
+            FitGrid(_seatGrid, vertical ? 3 : 6, vertical ? 2 : 1, 270, 150);
+        }
+
+        private static void FitGrid(GridLayoutGroup grid, int columns, int rows, float width, float height)
+        {
+            var rect = ((RectTransform)grid.transform).rect;
+            grid.constraintCount = columns;
+            grid.cellSize = new Vector2(
+                Mathf.Clamp((rect.width - grid.spacing.x * (columns - 1)) / columns, 1, width),
+                Mathf.Clamp((rect.height - grid.spacing.y * (rows - 1)) / rows, 1, height));
+        }
+
         private const int LogLines = 14;
 
         private TextMeshProUGUI _header;
@@ -39,6 +82,7 @@ namespace LiarsBar.Presentation.Table
         private Image _effect;
         private TextMeshProUGUI _effectTitle;
         private RectTransform _token;
+        private Image _wheel;
         private TextMeshProUGUI _symbol;
         private readonly List<Image> _chambers = new List<Image>();
         public bool IsPlayingEvent { get; internal set; }
@@ -73,6 +117,7 @@ namespace LiarsBar.Presentation.Table
         private void Build(Transform root)
         {
             var bg = Ui.Panel("Background", root, Ui.Background);
+            bg.sprite = Ui.Theme.backdrop;
             Ui.Stretch(bg.rectTransform);
 
             _header = Ui.Label("Header", root, string.Empty, 40);
@@ -80,12 +125,13 @@ namespace LiarsBar.Presentation.Table
             Ui.Anchor(_header.rectTransform, 0.02f, 0.92f, 0.98f, 0.99f);
 
             _seatsRow = Ui.Rect("Seats", root);
-            Ui.Anchor(_seatsRow, 0.02f, 0.76f, 0.98f, 0.92f);
-            Ui.Row(_seatsRow, 16);
+            Place(_seatsRow, Rect.MinMaxRect(0.02f, 0.76f, 0.98f, 0.92f), Rect.MinMaxRect(.02f,.78f,.98f,.92f));
+            _seatGrid = Grid(_seatsRow);
 
             // Центр стола: последний ход.
             var center = Ui.Panel("TablePlay", root, Ui.PanelColor);
-            Ui.Anchor(center.rectTransform, 0.02f, 0.47f, 0.70f, 0.75f);
+            center.sprite = Ui.Theme.felt;
+            Place(center.rectTransform, Rect.MinMaxRect(0.02f, 0.47f, 0.70f, 0.75f), Rect.MinMaxRect(.02f,.58f,.98f,.78f));
             _playCaption = Ui.Label("Caption", center.transform, string.Empty, 28);
             Ui.Anchor(_playCaption.rectTransform, 0.02f, 0.80f, 0.98f, 0.98f);
             var tableRow = Ui.Rect("Cards", center.transform);
@@ -94,34 +140,34 @@ namespace LiarsBar.Presentation.Table
             _tableCards = tableRow.gameObject.AddComponent<HandView>();
 
             _hint = Ui.Label("Hint", root, string.Empty, 30, color: new Color(1f, 0.85f, 0.45f));
-            Ui.Anchor(_hint.rectTransform, 0.02f, 0.38f, 0.70f, 0.46f);
+            Place(_hint.rectTransform, Rect.MinMaxRect(0.02f, 0.38f, 0.70f, 0.46f), Rect.MinMaxRect(.02f,.53f,.98f,.58f));
 
             var handRow = Ui.Rect("Hand", root);
-            Ui.Anchor(handRow, 0.02f, 0.10f, 0.70f, 0.37f);
-            Ui.Row(handRow, 14);
+            Place(handRow, Rect.MinMaxRect(0.02f, 0.10f, 0.70f, 0.37f), Rect.MinMaxRect(.02f,.16f,.98f,.53f));
+            _handGrid = Grid(handRow);
             _hand = handRow.gameObject.AddComponent<HandView>();
             _hand.CardClicked += id => CardClicked?.Invoke(id);
 
             var logPanel = Ui.Panel("Log", root, Ui.PanelColor);
-            Ui.Anchor(logPanel.rectTransform, 0.72f, 0.31f, 0.98f, 0.75f);
+            Place(logPanel.rectTransform, Rect.MinMaxRect(0.72f, 0.31f, 0.98f, 0.75f), Rect.MinMaxRect(.02f,.01f,.67f,.09f));
             _log = Ui.Label("Text", logPanel.transform, string.Empty, 20, TextAlignmentOptions.BottomLeft);
             _log.overflowMode = TextOverflowModes.Truncate;
             Ui.Stretch(_log.rectTransform, 14);
 
             _playButton = Ui.Button("Play", root, "Сыграть", 36, out _);
-            Ui.Anchor((RectTransform)_playButton.transform, 0.72f, 0.20f, 0.98f, 0.29f);
+            Place((RectTransform)_playButton.transform, Rect.MinMaxRect(0.72f, 0.20f, 0.98f, 0.29f), Rect.MinMaxRect(.02f,.095f,.49f,.155f));
             _playButton.onClick.AddListener(() => PlayClicked?.Invoke());
 
             _liarButton = Ui.Button("Liar", root, "Лжец!", 36, out _);
-            Ui.Anchor((RectTransform)_liarButton.transform, 0.72f, 0.10f, 0.98f, 0.19f);
+            Place((RectTransform)_liarButton.transform, Rect.MinMaxRect(0.72f, 0.10f, 0.98f, 0.19f), Rect.MinMaxRect(.51f,.095f,.98f,.155f));
             _liarButton.onClick.AddListener(() => LiarClicked?.Invoke());
 
             var exit = Ui.Button("Exit", root, "Выйти в меню", 26, out _);
-            Ui.Anchor((RectTransform)exit.transform, 0.72f, 0.015f, 0.98f, 0.085f);
+            Place((RectTransform)exit.transform, Rect.MinMaxRect(0.72f, 0.015f, 0.98f, 0.085f), Rect.MinMaxRect(.69f,.01f,.98f,.09f));
             exit.onClick.AddListener(() => ExitClicked?.Invoke());
 
             var passPanel = Ui.Panel("PassDeviceView", root, Ui.PanelColor);
-            Ui.Anchor(passPanel.rectTransform, 0.02f, 0.10f, 0.70f, 0.46f);
+            Place(passPanel.rectTransform, Rect.MinMaxRect(0.02f, 0.10f, 0.70f, 0.46f), Rect.MinMaxRect(.02f,.16f,.98f,.58f));
             _passDevice = passPanel.gameObject;
             _passTitle = Ui.Label("Recipient", passPanel.transform, string.Empty, 32);
             Ui.Anchor(_passTitle.rectTransform, 0.03f, 0.53f, 0.97f, 0.95f);
@@ -131,12 +177,16 @@ namespace LiarsBar.Presentation.Table
             _passDevice.SetActive(false);
 
             _effect = Ui.Panel("TableAnimation", root, Ui.PanelColor);
-            Ui.Anchor(_effect.rectTransform, 0.02f, 0.46f, 0.70f, 0.75f);
+            Place(_effect.rectTransform, Rect.MinMaxRect(0.02f, 0.46f, 0.70f, 0.75f), Rect.MinMaxRect(.02f,.58f,.98f,.78f));
             _effectTitle = Ui.Label("Event", _effect.transform, string.Empty, 35);
             Ui.Anchor(_effectTitle.rectTransform, 0.02f, 0.02f, 0.98f, 0.40f);
             _token = Ui.Rect("Token", _effect.transform);
             _token.anchorMin = _token.anchorMax = new Vector2(0.5f, 0.70f);
             _token.sizeDelta = new Vector2(90, 90);
+            _wheel = _token.gameObject.AddComponent<Image>();
+            _wheel.sprite = Ui.Theme.revolver;
+            _wheel.preserveAspect = true;
+            _wheel.raycastTarget = false;
             _symbol = Ui.Label("Card", _token, "?", 46);
             Ui.Stretch(_symbol.rectTransform);
             for (int i = 0; i < 6; i++)
@@ -158,6 +208,7 @@ namespace LiarsBar.Presentation.Table
             menu.onClick.AddListener(() => ExitClicked?.Invoke());
             _gameOverText.alignment = TextAlignmentOptions.Center;
             _gameOverText.fontSize = 44;
+            ResizeTable();
         }
 
         private static GameObject BuildModal(Transform root, string name, string buttonText, Action onClick, out TextMeshProUGUI text)
@@ -258,8 +309,10 @@ namespace LiarsBar.Presentation.Table
             _token.localRotation = Quaternion.identity;
             _token.anchoredPosition = Vector2.zero;
             bool wheel = evt is RevolverShooted;
+            _wheel.enabled = wheel && _wheel.sprite != null;
+            _effect.sprite = null;
             _symbol.gameObject.SetActive(!wheel);
-            foreach (var chamber in _chambers) chamber.gameObject.SetActive(wheel);
+            foreach (var chamber in _chambers) chamber.gameObject.SetActive(wheel && !_wheel.enabled);
             Vector3 start = _token.position;
             Vector3 end = start;
 
@@ -268,6 +321,7 @@ namespace LiarsBar.Presentation.Table
                 // Seats use an evenly spaced horizontal row, including during the first deal.
                 var seats = state.Seats.ToList();
                 int index = seats.FindIndex(s => s.SeatId == seat);
+                if (index >= 0 && index < _seats.Count) return _seats[index].transform.position;
                 var rect = _seatsRow.rect;
                 return _seatsRow.TransformPoint(new Vector2(
                     Mathf.Lerp(rect.xMin, rect.xMax, (index + 0.5f) / seats.Count), rect.center.y));
@@ -275,6 +329,7 @@ namespace LiarsBar.Presentation.Table
 
             if (evt is RoundStarted round)
             {
+                Ui.Sounds?.Play(Ui.Theme.cards);
                 _effectTitle.text = round.SubjectTitle;
                 _symbol.text = "▣";
                 foreach (var seat in round.HandSizes.Keys)
@@ -282,12 +337,14 @@ namespace LiarsBar.Presentation.Table
             }
             else if (evt is CardsPlayed play)
             {
+                Ui.Sounds?.Play(Ui.Theme.cards);
                 _effectTitle.text = state.GetSeat(play.SeatId).Name;
                 _symbol.text = play.Cards.Count == 1 ? "▣" : "▣ ▣";
                 yield return Fly(SeatPosition(play.SeatId), end, 0.35f);
             }
             else if (evt is LiarCalled call)
             {
+                Ui.Sounds?.Play(Ui.Theme.liar);
                 _symbol.text = "!";
                 _effectTitle.text = state.GetSeat(call.AccuserSeat).Name + " — Лжец!";
                 var seat = _seats.ElementAtOrDefault(state.Seats.ToList().FindIndex(s => s.SeatId == call.AccuserSeat));
@@ -300,6 +357,7 @@ namespace LiarsBar.Presentation.Table
             }
             else if (evt is RevolverShooted shot)
             {
+                Ui.Sounds?.Play(Ui.Theme.spin);
                 _effectTitle.text = state.GetSeat(shot.SeatId).Name + " · рулетка";
                 for (float t = 0; t < 0.55f; t += Time.unscaledDeltaTime)
                 {
@@ -307,12 +365,15 @@ namespace LiarsBar.Presentation.Table
                     yield return null;
                 }
                 yield return new WaitForSecondsRealtime(1.2f);
+                Ui.Sounds?.Play(shot.Hit ? Ui.Theme.shot : Ui.Theme.empty);
                 _effectTitle.text = shot.Hit ? "БАХ! " + state.GetSeat(shot.SeatId).Name + " выбывает" :
                     $"Щёлк… пусто. {shot.ShotsTaken}/{shot.Chambers}";
                 if (shot.Hit)
                 {
+                    _effect.sprite = Ui.Theme.shotFlash;
                     _effect.color = new Color(0.72f, 0.22f, 0.12f);
                     yield return ShakeTable();
+                    _effect.sprite = null;
                     _effect.color = Ui.PanelColor;
                 }
                 yield return new WaitForSecondsRealtime(0.8f);
@@ -376,6 +437,7 @@ namespace LiarsBar.Presentation.Table
 
         private void Update()
         {
+            ResizeTable();
             if (_reveal == null || !_reveal.activeSelf || _revealText.rectTransform.localScale.x >= 1f) return;
             var progress = Mathf.Clamp01((Time.unscaledTime - _revealStartedAt) / RevealDuration);
             _revealText.rectTransform.localScale = new Vector3(Mathf.Sin(progress * Mathf.PI * 0.5f), 1f, 1f);
@@ -388,6 +450,7 @@ namespace LiarsBar.Presentation.Table
             _gameOverText.text = text;
             _gameOver.SetActive(true);
             _gameOver.transform.SetAsLastSibling();
+            Ui.Sounds?.Play(Ui.Theme.victory);
             GameOverShown?.Invoke();
         }
     }

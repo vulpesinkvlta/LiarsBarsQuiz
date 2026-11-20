@@ -23,6 +23,7 @@ namespace LiarsBar.Presentation.Table
         public static CardView Create(Transform parent)
         {
             var bg = Ui.Panel("Card", parent, Ui.PanelLight);
+            bg.sprite = Ui.Theme.card;
             Ui.Size(bg, Width, Height);
             var view = bg.gameObject.AddComponent<CardView>();
             view._background = bg;

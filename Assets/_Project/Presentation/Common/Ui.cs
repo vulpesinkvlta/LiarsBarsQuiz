@@ -10,15 +10,25 @@ namespace LiarsBar.Presentation.Common
     /// </summary>
     public static class Ui
     {
-        public static readonly Color Background = new Color(0.16f, 0.16f, 0.17f);
-        public static readonly Color PanelColor = new Color(0.26f, 0.26f, 0.28f);
-        public static readonly Color PanelLight = new Color(0.36f, 0.36f, 0.38f);
-        public static readonly Color Highlight = new Color(0.55f, 0.47f, 0.22f);
-        public static readonly Color Selected = new Color(0.30f, 0.45f, 0.65f);
-        public static readonly Color Dead = new Color(0.12f, 0.12f, 0.12f);
-        public static readonly Color Text = new Color(0.93f, 0.93f, 0.93f);
-        public static readonly Color TextDim = new Color(0.6f, 0.6f, 0.6f);
-        public static readonly Color Overlay = new Color(0f, 0f, 0f, 0.75f);
+        public static Color Background => Theme.Background;
+        public static Color PanelColor => Theme.PanelColor;
+        public static Color PanelLight => Theme.PanelLight;
+        public static Color Highlight => Theme.Highlight;
+        public static Color Selected => Theme.Selected;
+        public static Color Dead => Theme.Dead;
+        public static Color Text => Theme.Text;
+        public static Color TextDim => Theme.TextDim;
+        public static Color Overlay => Theme.Overlay;
+
+        private static UiTheme _theme;
+        public static UiTheme Theme => _theme != null ? _theme : (_theme = ScriptableObject.CreateInstance<UiTheme>());
+        public static ISoundPlayer Sounds { get; private set; }
+
+        public static void Configure(UiTheme theme, ISoundPlayer sounds)
+        {
+            _theme = theme;
+            Sounds = sounds;
+        }
 
         public static TMP_FontAsset Font { get; set; }
 
@@ -59,6 +69,7 @@ namespace LiarsBar.Presentation.Common
         {
             var image = Panel(name, parent, PanelLight);
             var button = image.gameObject.AddComponent<Button>();
+            button.onClick.AddListener(() => Sounds?.Play(Theme.click));
             var colors = button.colors;
             colors.highlightedColor = new Color(1.1f, 1.1f, 1.1f);
             colors.pressedColor = new Color(0.8f, 0.8f, 0.8f);

@@ -19,6 +19,14 @@ namespace LiarsBar.Presentation.Table
             Ui.Size(bg, 270, 150);
             var view = bg.gameObject.AddComponent<SeatView>();
             view._background = bg;
+            if (Ui.Theme.portrait != null)
+            {
+                var portrait = Ui.Panel("Portrait", bg.transform, Color.white);
+                portrait.sprite = Ui.Theme.portrait;
+                portrait.preserveAspect = true;
+                portrait.raycastTarget = false;
+                Ui.Anchor(portrait.rectTransform, 0.02f, 0.02f, 0.22f, 0.29f);
+            }
 
             view._name = Ui.Label("Name", bg.transform, string.Empty, 28);
             view._name.fontStyle = FontStyles.Bold;

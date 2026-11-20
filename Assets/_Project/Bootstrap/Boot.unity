@@ -240,6 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8cfd69ef21ca403498a835f41c29db08, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LiarsBar.Bootstrap::LiarsBar.Bootstrap.Bootstrap
+  _theme: {fileID: 11400000, guid: b3a1743108ad44a584b743aabd1425bb, type: 2}
   _font: {fileID: 11400000, guid: d4f9f00d99b63fd4b90fd7b55afb0703, type: 2}
 --- !u!4 &1634501927
 Transform:

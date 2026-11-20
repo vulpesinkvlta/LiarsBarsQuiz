@@ -21,6 +21,7 @@ namespace LiarsBar.Bootstrap
     /// </summary>
     public sealed class Bootstrap : MonoBehaviour
     {
+        [SerializeField] private UiTheme _theme;
         [SerializeField] private TMP_FontAsset _font;
         [SerializeField] private BotProfileAsset[] _botProfiles;
         [SerializeField] private string _playerName = "Игрок";
@@ -44,7 +45,10 @@ namespace LiarsBar.Bootstrap
             _factory = new MatchFactory(_config, subjects, LoadBotProfiles(), timer);
 
             if (_font == null) Debug.LogWarning("[Bootstrap] Font is not assigned: Cyrillic and ✓/✗ will not render.", this);
-            _view = TableView.Create(_font);
+            var audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            Ui.Configure(_theme, new UiSoundPlayer(audioSource));
+            _view = TableView.Create(Ui.Theme.font != null ? Ui.Theme.font : _font);
             _view.transform.SetParent(transform, false);
             var navigation = UiRoot.CreateCanvas("Navigation", transform, 1);
             navigation.gameObject.AddComponent<ScreenRouter>().Initialize(_view, StartMatch, DisposeMatch, _playerName, _botCount);
