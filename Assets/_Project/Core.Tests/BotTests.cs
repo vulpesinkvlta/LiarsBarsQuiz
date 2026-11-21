@@ -20,7 +20,7 @@ namespace LiarsBar.Core.Tests
             var c = BotProfile.Cautious;
             Assert.AreEqual((0.70f, 0.45f, 0.20f, 0.70f, 0.10f), (c.KnowEasy, c.KnowMedium, c.KnowHard, c.AccuseThreshold, c.MixLieChance));
             var b = BotProfile.Brazen;
-            Assert.AreEqual((0.60f, 0.35f, 0.15f, 0.45f, 0.40f), (b.KnowEasy, b.KnowMedium, b.KnowHard, b.AccuseThreshold, b.MixLieChance));
+            Assert.AreEqual((0.60f, 0.35f, 0.15f, 0.45f, 0.24f), (b.KnowEasy, b.KnowMedium, b.KnowHard, b.AccuseThreshold, b.MixLieChance));
             var e = BotProfile.Expert;
             Assert.AreEqual((0.90f, 0.70f, 0.45f, 0.55f, 0.20f), (e.KnowEasy, e.KnowMedium, e.KnowHard, e.AccuseThreshold, e.MixLieChance));
 

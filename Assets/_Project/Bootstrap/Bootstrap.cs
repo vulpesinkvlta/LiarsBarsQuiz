@@ -51,19 +51,31 @@ namespace LiarsBar.Bootstrap
             _view = TableView.Create(Ui.Theme.font != null ? Ui.Theme.font : _font);
             _view.transform.SetParent(transform, false);
             var navigation = UiRoot.CreateCanvas("Navigation", transform, 1);
-            navigation.gameObject.AddComponent<ScreenRouter>().Initialize(_view, StartMatch, DisposeMatch, _playerName, _botCount);
+            var rooms = LiarsBar.Networking.NetworkServices.Attach(gameObject);
+            var router = navigation.gameObject.AddComponent<ScreenRouter>();
+            router.OnlineStartRequested += bots =>
+            {
+                var session = rooms.StartHost(_factory, _config, bots);
+                if (session == null) return false;
+                StartSession(session, false);
+                return true;
+            };
+            router.Initialize(_view, StartMatch, DisposeMatch, _playerName, _botCount, rooms);
         }
 
         private void StartMatch(GameModeSettings settings)
+            => StartSession(_factory.Create(settings), settings.Mode == GameMode.HotSeat);
+
+        private void StartSession(LocalMatchSession session, bool hotSeat)
         {
             DisposeMatch();
             _view.ResetView();
 
-            _session = _factory.Create(settings);
+            _session = session;
             _session.ControllerActionReplaced += (seat, error) =>
                 Debug.LogWarning($"[Session] Seat {seat}: action rejected ({error}), fallback move used.");
             _presenter = new TablePresenter(_session, _view, _config.MinCardsPerPlay, _config.MaxCardsPerPlay, this);
-            if (settings.Mode == GameMode.HotSeat)
+            if (hotSeat)
             {
                 _session.ViewChanged += UpdatePassDevice;
                 _view.PassConfirmed += ConfirmPass;

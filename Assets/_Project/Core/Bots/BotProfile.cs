@@ -90,7 +90,7 @@ namespace LiarsBar.Core.Bots
         {
             Id = "brazen", DisplayName = "Наглый",
             KnowEasy = 0.60f, KnowMedium = 0.35f, KnowHard = 0.15f,
-            AccuseThreshold = 0.45f, MixLieChance = 0.40f
+            AccuseThreshold = 0.45f, MixLieChance = 0.24f, UnknownLieChance = 0.41f
         };
 
         /// <summary>Знаток: знает больше всех.</summary>

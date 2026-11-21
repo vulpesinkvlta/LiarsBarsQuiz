@@ -27,6 +27,12 @@ namespace LiarsBar.Content.Tests
 
                 Assert.AreEqual(Matches, result.Wins.Values.Sum(), $"{players} players: not every match has a winner");
                 Assert.Greater(result.Accusations, 0);
+                if (players == 4)
+                {
+                    Assert.That(result.AverageRounds, Is.InRange(8.0, 14.0));
+                    foreach (var id in result.SeatsPlayed.Keys)
+                        Assert.LessOrEqual(result.WinRate(id), 0.5, id);
+                }
                 report += result.ToReport() + "\n";
             }
 

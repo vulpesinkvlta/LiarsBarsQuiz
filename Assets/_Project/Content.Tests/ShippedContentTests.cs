@@ -20,7 +20,7 @@ namespace LiarsBar.Content.Tests
     /// </summary>
     public class ShippedContentTests
     {
-        private const int MinSubjects = 4;
+        private const int MinSubjects = 12;
 
         private static System.Collections.Generic.IReadOnlyList<Subject> Load() =>
             JsonSubjectProvider.FromResources().GetSubjects();
@@ -29,8 +29,8 @@ namespace LiarsBar.Content.Tests
         public void Content_LoadsFromResources()
         {
             var subjects = Load();
-            Assert.GreaterOrEqual(subjects.Count, MinSubjects, "expected at least the 4 subjects of content v1");
-            foreach (var id in new[] { "octopus", "eiffel_tower", "coffee", "moon" })
+            Assert.GreaterOrEqual(subjects.Count, MinSubjects, "expected at least the 12 subjects of content v2");
+            foreach (var id in new[] { "octopus", "eiffel_tower", "coffee", "moon", "baikal", "brain", "cats", "chocolate", "football", "pizza", "pyramids", "smartphone" })
                 Assert.IsTrue(subjects.Any(s => s.Id == id), $"subject '{id}' is missing");
         }
 

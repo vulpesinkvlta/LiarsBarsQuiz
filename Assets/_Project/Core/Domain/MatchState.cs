@@ -81,7 +81,7 @@ namespace LiarsBar.Core.Domain
         /// Снимок глазами места seatId: публичное состояние + рука только этого игрока.
         /// seatId, которого нет за столом (например -1), даёт снимок зрителя без руки.
         /// </summary>
-        public PlayerView SnapshotFor(int seatId)
+        public PlayerView SnapshotFor(int seatId, int? remainingTurnSeconds = null)
         {
             var ended = Phase == MatchPhase.Ended;
             var seats = _players
@@ -99,7 +99,7 @@ namespace LiarsBar.Core.Domain
                 : (IReadOnlyList<HandCard>)Array.Empty<HandCard>();
 
             return new PlayerView(viewer != null ? seatId : -1, Phase, RoundNumber, CurrentSubject?.Id,
-                CurrentSubject?.Title, CurrentSeat, ForcedAccusation, WinnerSeat, seats, lastPlay, hand);
+                CurrentSubject?.Title, CurrentSeat, ForcedAccusation, WinnerSeat, seats, lastPlay, hand, remainingTurnSeconds);
         }
 
         /// <summary>Глубокая копия: нужна движку, чтобы невалидное действие не меняло состояние, и тестам.</summary>

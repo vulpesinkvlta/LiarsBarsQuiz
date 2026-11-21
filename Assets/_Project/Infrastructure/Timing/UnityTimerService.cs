@@ -10,7 +10,7 @@ namespace LiarsBar.Infrastructure.Timing
     {
         private sealed class Entry : IDisposable
         {
-            public float Due;
+            public double Due;
             public Action Callback;
             public bool Cancelled;
             public void Dispose() => Cancelled = true;
@@ -18,11 +18,12 @@ namespace LiarsBar.Infrastructure.Timing
 
         private readonly List<Entry> _entries = new List<Entry>();
         private readonly List<Entry> _due = new List<Entry>();
+        public double Now => Time.unscaledTimeAsDouble;
 
         public IDisposable Schedule(float delaySeconds, Action callback)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
-            var entry = new Entry { Due = Time.unscaledTime + Mathf.Max(0f, delaySeconds), Callback = callback };
+            var entry = new Entry { Due = Now + Mathf.Max(0f, delaySeconds), Callback = callback };
             _entries.Add(entry);
             return entry;
         }
@@ -31,7 +32,7 @@ namespace LiarsBar.Infrastructure.Timing
         {
             if (_entries.Count == 0) return;
 
-            var now = Time.unscaledTime;
+            var now = Now;
             _due.Clear();
             for (var i = _entries.Count - 1; i >= 0; i--)
             {

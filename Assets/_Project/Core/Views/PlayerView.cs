@@ -98,6 +98,7 @@ namespace LiarsBar.Core.Views
         public int CurrentSeat { get; }
         public bool ForcedAccusation { get; }
         public int WinnerSeat { get; }
+        public int? RemainingTurnSeconds { get; }
 
         public IReadOnlyList<SeatInfo> Seats { get; }
 
@@ -117,7 +118,7 @@ namespace LiarsBar.Core.Views
 
         public PlayerView(int viewerSeat, MatchPhase phase, int roundNumber, string subjectId, string subjectTitle,
             int currentSeat, bool forcedAccusation, int winnerSeat, IReadOnlyList<SeatInfo> seats,
-            TablePlayView lastPlay, IReadOnlyList<HandCard> myHand)
+            TablePlayView lastPlay, IReadOnlyList<HandCard> myHand, int? remainingTurnSeconds = null)
         {
             ViewerSeat = viewerSeat;
             Phase = phase;
@@ -130,6 +131,7 @@ namespace LiarsBar.Core.Views
             Seats = seats;
             LastPlay = lastPlay;
             MyHand = myHand;
+            RemainingTurnSeconds = remainingTurnSeconds;
         }
 
         public SeatInfo GetSeat(int seatId)

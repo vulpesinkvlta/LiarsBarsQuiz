@@ -20,8 +20,8 @@ MonoBehaviour:
     KnowHard: 0.15
     AccuseThreshold: 0.45
     ThresholdPerShot: 0.05
-    MixLieChance: 0.4
-    UnknownLieChance: 0.35
+    MixLieChance: 0.24
+    UnknownLieChance: 0.41
     LowCardsLimit: 1
     LowCardsBonus: 0.15
     TwoCardsBonus: 0.1

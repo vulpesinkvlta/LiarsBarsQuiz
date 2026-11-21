@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using LiarsBar.Application.Seats;
 using LiarsBar.Application.Sessions;
@@ -9,6 +10,60 @@ namespace LiarsBar.Application.Tests
 {
     public class MatchFactoryTests
     {
+        [Test]
+        public void Host_TimeoutSurvivesInvalidInputAndIsCancelledByValidMove()
+        {
+            var clock = new ManualTimer();
+            var roster = new[] { new KeyValuePair<int, string>(9, "Host"), new KeyValuePair<int, string>(4, "Guest") };
+            using (var session = Factory(clock).CreateHost(roster, 0))
+            {
+                session.Start();
+                int batches = 0;
+                session.EventsRaised += _ => batches++;
+                int first = session.State.CurrentSeat;
+                Assert.AreEqual(30, session.CurrentView.RemainingTurnSeconds);
+                clock.Advance(29);
+                Assert.AreEqual(1, session.SnapshotFor(1).RemainingTurnSeconds);
+                SubmitForCurrentSeat(session, new LiarsBar.Core.Actions.PlayCardsAction(first, "missing"));
+                clock.Advance(1);
+                Assert.AreEqual(1, batches);
+                Assert.AreNotEqual(first, session.State.CurrentSeat);
+                clock.Advance(10);
+                SubmitForCurrentSeat(session, LocalMatchSession.FallbackAction(session.SnapshotFor(session.State.CurrentSeat)));
+                Assert.AreEqual(2, batches);
+                clock.Advance(20);
+                Assert.AreEqual(2, batches);
+                Assert.AreEqual(10, session.SnapshotFor(0).RemainingTurnSeconds);
+            }
+            Assert.AreEqual(0, clock.Pending);
+        }
+
+        private static void SubmitForCurrentSeat(LocalMatchSession session, LiarsBar.Core.Actions.IGameAction action)
+        {
+            if (session.Controllers[action.SeatId] is RemoteSeat remote)
+                Assert.IsTrue(remote.TrySubmit(remote.ActorNumber, action));
+            else session.Submit(action);
+        }
+
+        [Test]
+        public void Host_MapsActorsToSeatsAndFillsSelectedBots()
+        {
+            var roster = new[]
+            {
+                new KeyValuePair<int, string>(9, "Игрок"),
+                new KeyValuePair<int, string>(4, "Игрок")
+            };
+            using (var session = Factory(new ManualTimer()).CreateHost(roster, 2))
+            {
+                session.Start();
+                Assert.AreEqual(0, session.ViewerSeat);
+                Assert.IsInstanceOf<LocalHumanSeat>(session.Controllers[0]);
+                Assert.AreEqual(4, ((RemoteSeat)session.Controllers[1]).ActorNumber);
+                Assert.AreEqual(2, session.Controllers.Values.OfType<BotSeat>().Count());
+                Assert.AreEqual("Игрок 2", session.Seats[1].Name);
+            }
+        }
+
         [Test]
         public void VsBots_HumanOnSeatZero_ThreeDifferentBots()
         {

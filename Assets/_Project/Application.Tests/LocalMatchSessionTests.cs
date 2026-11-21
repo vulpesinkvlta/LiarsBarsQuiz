@@ -17,6 +17,31 @@ namespace LiarsBar.Application.Tests
 {
     public class LocalMatchSessionTests
     {
+        [Test]
+        public void RemoteTurn_OnlyOwnerCanAct_AndCanRetryAfterInvalidPlay()
+        {
+            var seats = Enumerable.Range(0, 3).ToDictionary(i => i,
+                i => (ISeatController)new RemoteSeat(10 + i, i, $"Guest {i}"));
+            var engine = new MatchEngine(GameRulesConfig.Default, Subjects(), new SeededRandom(9));
+            using (var session = new LocalMatchSession(engine, MatchSettings.ForPlayers(3), seats, 0))
+            {
+                session.Start();
+                var id = session.State.CurrentSeat;
+                var remote = (RemoteSeat)seats[id];
+                var valid = LocalMatchSession.FallbackAction(engine.SnapshotFor(id));
+                int batches = 0;
+                session.EventsRaised += _ => batches++;
+                Assert.IsFalse(remote.TrySubmit(99, valid));
+                Assert.IsFalse(remote.TrySubmit(10 + id, new CallLiarAction((id + 1) % 3)));
+                Assert.IsTrue(remote.TrySubmit(10 + id, new PlayCardsAction(id, new[] { "missing" })));
+                Assert.AreEqual(0, batches);
+                Assert.AreEqual(id, session.State.CurrentSeat);
+                Assert.IsTrue(remote.TrySubmit(10 + id, valid));
+                Assert.AreEqual(1, batches);
+                Assert.IsFalse(remote.TrySubmit(10 + id, valid));
+            }
+        }
+
         private static LocalMatchSession VsBots(ManualTimer timer, int bots = 3, int seed = 7)
         {
             var settings = GameModeSettings.VsBots("Лена", bots);

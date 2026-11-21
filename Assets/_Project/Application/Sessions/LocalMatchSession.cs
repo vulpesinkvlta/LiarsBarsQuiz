@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using LiarsBar.Application.Seats;
+using LiarsBar.Application.Timing;
 using LiarsBar.Core.Actions;
 using LiarsBar.Core.Domain;
 using LiarsBar.Core.Engine;
@@ -19,6 +20,7 @@ namespace LiarsBar.Application.Sessions
     {
         private readonly MatchEngine _engine;
         private readonly MatchSettings _settings;
+        private readonly TurnTimer _turnTimer;
         private readonly Dictionary<int, ISeatController> _controllers;
         private readonly Queue<Submission> _inbox = new Queue<Submission>();
 
@@ -44,11 +46,14 @@ namespace LiarsBar.Application.Sessions
         public MatchState State => _engine.State;
 
         public IReadOnlyDictionary<int, ISeatController> Controllers => _controllers;
+        public IReadOnlyList<SeatSetup> Seats => _settings.Seats;
+        public PlayerView SnapshotFor(int seatId) => State.SnapshotFor(seatId, _turnTimer?.RemainingSeconds);
 
         public bool IsEnded => _engine.State?.Phase == MatchPhase.Ended;
 
         public LocalMatchSession(MatchEngine engine, MatchSettings settings,
-            IReadOnlyDictionary<int, ISeatController> controllers, int viewerSeat, bool followHumanTurn = false)
+            IReadOnlyDictionary<int, ISeatController> controllers, int viewerSeat, bool followHumanTurn = false,
+            TurnTimer turnTimer = null)
         {
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -63,6 +68,7 @@ namespace LiarsBar.Application.Sessions
 
             _controllers = controllers.ToDictionary(kv => kv.Key, kv => kv.Value);
             _followHumanTurn = followHumanTurn;
+            _turnTimer = turnTimer;
             ViewerSeat = followHumanTurn ? -1 : viewerSeat;
         }
 
@@ -125,6 +131,7 @@ namespace LiarsBar.Application.Sessions
         {
             if (_disposed) return;
             _disposed = true;
+            _turnTimer?.Dispose();
             _requestId++;
             _inbox.Clear();
             foreach (var controller in _controllers.Values) controller.Cancel();
@@ -148,7 +155,10 @@ namespace LiarsBar.Application.Sessions
             old.Cancel();
             _controllers[seatId] = controller;
             if (_started && _engine.State.Phase == MatchPhase.AwaitingAction && _engine.State.CurrentSeat == seatId)
+            {
+                ResetTurnTimer();
                 RequestCurrent();
+            }
         }
 
         private void RequestCurrent()
@@ -187,6 +197,7 @@ namespace LiarsBar.Application.Sessions
         private void Process(Submission submission)
         {
             if (submission.RequestId != _requestId) return; // поздний или повторный ответ
+            if (_turnTimer?.ExpireIfDue() == true) return;
 
             var controller = _controllers[submission.SeatId];
             var action = submission.Action;
@@ -196,6 +207,12 @@ namespace LiarsBar.Application.Sessions
 
             if (!result.IsSuccess)
             {
+                if (controller is RemoteSeat)
+                {
+                    RequestCurrent();
+                    return;
+                }
+
                 if (controller is LocalHumanSeat)
                 {
                     Reject(result.Error);
@@ -203,7 +220,7 @@ namespace LiarsBar.Application.Sessions
                     return;
                 }
 
-                // Бот или удалённый игрок не должен ломать партию: ходим за него простым допустимым ходом.
+                // Если бот ошибся, ходим за него простым допустимым ходом.
                 ControllerActionReplaced?.Invoke(submission.SeatId, result.Error);
                 result = _engine.Apply(FallbackAction(_engine.SnapshotFor(submission.SeatId)));
                 if (!result.IsSuccess) throw new InvalidOperationException($"Fallback action failed: {result.Error}");
@@ -215,6 +232,7 @@ namespace LiarsBar.Application.Sessions
         private void Publish(IReadOnlyList<GameEvent> events)
         {
             _requestId++; // все старые запросы больше не актуальны
+            ResetTurnTimer();
             if (_followHumanTurn)
             {
                 ViewerSeat = -1;
@@ -223,11 +241,24 @@ namespace LiarsBar.Application.Sessions
             EventsRaised?.Invoke(events);
             if (_disposed) return;
 
-            if (!_followHumanTurn) CurrentView = _engine.SnapshotFor(ViewerSeat);
+            if (!_followHumanTurn) CurrentView = SnapshotFor(ViewerSeat);
             ViewChanged?.Invoke(CurrentView);
             if (_disposed) return;
 
             RequestCurrent();
+        }
+
+        private void ResetTurnTimer()
+        {
+            if (_turnTimer == null) return;
+            _turnTimer.Dispose();
+            var seat = State.CurrentSeat;
+            if (State.Phase != MatchPhase.AwaitingAction || _controllers[seat] is BotSeat) return;
+            _turnTimer.Start(_engine.SnapshotFor(seat), action =>
+            {
+                _controllers[seat].Cancel();
+                Enqueue(new Submission(++_requestId, seat, action));
+            });
         }
 
         private void Reject(ActionError error) => ActionRejected?.Invoke(error);

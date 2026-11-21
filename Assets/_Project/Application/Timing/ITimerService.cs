@@ -8,6 +8,8 @@ namespace LiarsBar.Application.Timing
     /// </summary>
     public interface ITimerService
     {
+        double Now { get; }
+
         /// <summary>Вызвать callback через delaySeconds. Dispose у результата отменяет вызов.</summary>
         IDisposable Schedule(float delaySeconds, Action callback);
     }

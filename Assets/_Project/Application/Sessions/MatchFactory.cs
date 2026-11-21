@@ -37,9 +37,24 @@ namespace LiarsBar.Application.Sessions
         }
 
         public LocalMatchSession Create(GameModeSettings settings)
+            => Create(settings, null);
+
+        // Seat zero belongs to the host. Guest actors follow in roster order.
+        public LocalMatchSession CreateHost(IReadOnlyList<KeyValuePair<int, string>> actors, int botCount)
+        {
+            if (actors == null || actors.Count == 0 || actors.Select(p => p.Key).Distinct().Count() != actors.Count)
+                throw new ArgumentException("Expected a host and unique actor numbers.", nameof(actors));
+            if (botCount < 0 || botCount > _config.MaxPlayers - actors.Count)
+                throw new ArgumentOutOfRangeException(nameof(botCount));
+            var slots = actors.Select(p => PlayerSlot.Human(p.Value))
+                .Concat(Enumerable.Range(0, botCount).Select(_ => PlayerSlot.Bot()));
+            return Create(new GameModeSettings(GameMode.Online, slots), actors);
+        }
+
+        private LocalMatchSession Create(GameModeSettings settings, IReadOnlyList<KeyValuePair<int, string>> actors)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            if (settings.Mode != GameMode.VsBots && settings.Mode != GameMode.HotSeat)
+            if (settings.Mode != GameMode.VsBots && settings.Mode != GameMode.HotSeat && actors == null)
                 throw new NotSupportedException($"Mode {settings.Mode} is not supported yet.");
 
             var slots = settings.Slots;
@@ -80,13 +95,19 @@ namespace LiarsBar.Application.Sessions
                 {
                     var name = UniqueName(string.IsNullOrWhiteSpace(slot.Name) ? DefaultHumanName : slot.Name.Trim(), names);
                     seats.Add(new SeatSetup(seatId, name));
-                    controllers[seatId] = new LocalHumanSeat(seatId, name);
+                    if (actors != null && seatId > 0)
+                        controllers[seatId] = new RemoteSeat(actors[seatId].Key, seatId, name);
+                    else
+                        controllers[seatId] = new LocalHumanSeat(seatId, name);
                     if (viewer < 0) viewer = seatId;
                 }
             }
 
             var engine = new MatchEngine(_config, _subjects, new SeededRandom(seed * 31 + 7));
-            return new LocalMatchSession(engine, new MatchSettings(seats), controllers, viewer, followHumanTurn: settings.Mode == GameMode.HotSeat);
+            var turnTimer = actors == null ? null : new TurnTimer(_timer, _config.OnlineTurnSeconds,
+                view => strategy.Decide(view, profileOrder[0], setupRandom));
+            return new LocalMatchSession(engine, new MatchSettings(seats), controllers, viewer,
+                followHumanTurn: settings.Mode == GameMode.HotSeat, turnTimer: turnTimer);
         }
 
         private static string UniqueName(string name, HashSet<string> taken)

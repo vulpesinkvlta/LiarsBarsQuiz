@@ -91,6 +91,8 @@ namespace LiarsBar.Core.Bots
             var cards = new List<string> { random.Pick(trues).Id };
             if (_maxCardsPerPlay >= 2 && falses.Count > 0 && random.Chance(profile.MixLieChance))
                 cards.Add(Hardest(falses, random).Id);
+            else if (_maxCardsPerPlay >= 2 && trues.Count > 1 && random.Chance(profile.MixLieChance))
+                cards.Add(random.Pick(trues.Where(c => c.Id != cards[0]).ToList()).Id);
             return cards;
         }
 

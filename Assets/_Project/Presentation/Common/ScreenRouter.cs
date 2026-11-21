@@ -5,9 +5,9 @@ using UnityEngine;
 
 namespace LiarsBar.Presentation.Common
 {
-    public sealed class ScreenRouter : MonoBehaviour
+    public sealed partial class ScreenRouter : MonoBehaviour
     {
-        private enum Screen { Splash, Menu, Rules, Setup, Table, ConfirmExit, GameOver }
+        private enum Screen { Splash, Menu, Rules, Setup, Table, ConfirmExit, GameOver, Online, Lobby }
 
         private const string RulesSeen = "LiarsBar.RulesSeen";
         private const string SoundEnabled = "LiarsBar.SoundEnabled";
@@ -28,13 +28,15 @@ namespace LiarsBar.Presentation.Common
         private string _defaultName;
         private int _defaultBots;
 
-        public void Initialize(TableView table, Action<GameModeSettings> start, Action leave, string defaultName, int defaultBots)
+        public void Initialize(TableView table, Action<GameModeSettings> start, Action leave, string defaultName, int defaultBots, LiarsBar.Application.IRoomService rooms = null)
         {
             _table = table;
             _start = start;
             _leave = leave;
             _defaultName = defaultName;
             _defaultBots = defaultBots;
+            _rooms = rooms;
+            if (_rooms != null) _rooms.Changed += RefreshOnline;
             _table.ExitClicked += RequestExit;
             _table.RestartClicked += Restart;
             _table.GameOverShown += OnGameOver;
@@ -80,7 +82,7 @@ namespace LiarsBar.Presentation.Common
             Page(Screen.Menu, "Бар лжецов");
             Button("Играть с ботами", 0.68f, () => Setup(GameMode.VsBots));
             Button("На одном устройстве", 0.55f, () => Setup(GameMode.HotSeat));
-            Button("Онлайн · скоро", 0.42f, null);
+            Button("Онлайн", 0.42f, _rooms == null ? (Action)null : OpenOnline);
             Button("Правила", 0.29f, OpenRules);
             Button(AudioListener.volume > 0 ? "Звук включён" : "Звук выключен", 0.16f, () =>
             {
@@ -147,7 +149,9 @@ namespace LiarsBar.Presentation.Common
 
         private void Restart()
         {
-            if (_screen == Screen.GameOver) StartTable(_lastMatch);
+            if (_screen != Screen.GameOver) return;
+            if (_lastMatch == null) Leave();
+            else StartTable(_lastMatch);
         }
 
         private void OnGameOver()
@@ -174,6 +178,7 @@ namespace LiarsBar.Presentation.Common
         private void Leave()
         {
             _leave();
+            if (_rooms?.Code != null) _rooms.Close();
             Menu();
         }
     }
