@@ -19,6 +19,7 @@ namespace LiarsBar.Presentation.Table
     {
         private readonly List<Action<bool>> _layouts = new List<Action<bool>>();
         private RectTransform _pile;
+        private int _faceUpCount;
         private Image _subject;
         private Sprite Back => Ui.Theme.cardBack != null ? Ui.Theme.cardBack : Ui.Theme.card;
         private readonly List<CardView> _played = new List<CardView>();
@@ -62,7 +63,36 @@ namespace LiarsBar.Presentation.Table
         private TextMeshProUGUI _log;
         private readonly Queue<string> _logLines = new Queue<string>();
         private RectTransform _journal;
-        private bool _journalOpen;
+        private enum Drawer { Closed, Journal, Chat }
+        private Drawer _requested, _shown;
+        private RectTransform _chatBody;
+        private GameObject _chatTab;
+        private TextMeshProUGUI _chatTabLabel;
+        private TMP_InputField _chatInput;
+        private TextMeshProUGUI _chatText, _micLabel, _journalArrow;
+        private readonly Queue<string> _messages = new Queue<string>();
+        public Func<string,bool> SendChat;
+        public event Action MicClicked;
+        public void SetMicStatus(string status)
+        {
+            if (_micLabel == null) return;
+            _micLabel.text = status;
+            _chatTabLabel.text = status == "Выключить микрофон" ? "Чат •" : "Чат";
+        }
+        public void AddChat(string message)
+        {
+            _messages.Enqueue(message);
+            while (_messages.Count > 40) _messages.Dequeue();
+            _chatText.text = string.Join("\n",_messages);
+        }
+        public void ClearChat()
+        {
+            _messages.Clear();
+            if (_chatText == null) return;
+            _chatText.text = "";
+            _chatInput.text = "";
+            _requested = Drawer.Closed;
+        }
         private float _journalProgress;
         private bool _canPlay;
         private Image _flash;
@@ -163,16 +193,10 @@ namespace LiarsBar.Presentation.Table
             _header.enableAutoSizing = true;
             _header.fontSizeMax = 26;
             _journal = logPanel.rectTransform;
-            var toggle = Ui.Button("ToggleLog",_journal,"<",26,out var arrow);
-            var tab = (RectTransform)toggle.transform;
-            tab.anchorMin = tab.anchorMax = new Vector2(0,.5f);
-            tab.pivot = new Vector2(1,.5f);
-            tab.sizeDelta = new Vector2(52,72);
-            toggle.onClick.AddListener(() =>
-            {
-                _journalOpen = !_journalOpen;
-                arrow.text = _journalOpen ? ">" : "<";
-            });
+            var toggle = Ui.Button("ToggleLog",_journal,"<",26,out _journalArrow);
+            DrawerTab(toggle,.62f);
+            toggle.onClick.AddListener(()=>ToggleDrawer(Drawer.Journal));
+            BuildChat();
             var expand = Ui.Button("ExpandHand",root,"Карты",22,out _);
             Ui.Anchor((RectTransform)expand.transform,.015f,.275f,.18f,.34f);
             expand.onClick.AddListener(()=>_raised = !_raised);
@@ -233,6 +257,63 @@ namespace LiarsBar.Presentation.Table
             _gameOverText.alignment = TextAlignmentOptions.Center;
             _gameOverText.fontSize = 44;
             ResizeTable();
+        }
+
+        private static void DrawerTab(Button button,float height)
+        {
+            var tab = (RectTransform)button.transform;
+            tab.anchorMin = tab.anchorMax = new Vector2(0,height);
+            tab.pivot = new Vector2(1,.5f);
+            tab.sizeDelta = new Vector2(70,58);
+        }
+
+        private void ToggleDrawer(Drawer drawer) =>
+            _requested = _requested == drawer ? Drawer.Closed : drawer;
+
+        private void BuildChat()
+        {
+            var tab = Ui.Button("ToggleChat",_journal,"Чат",22,out _chatTabLabel);
+            _chatTab = tab.gameObject;
+            DrawerTab(tab,.40f);
+            tab.onClick.AddListener(()=>ToggleDrawer(Drawer.Chat));
+            _chatBody = Ui.Rect("RoomChat",_journal);
+            Ui.Stretch(_chatBody);
+            _chatText = Ui.Label("Messages",_chatBody,"",20,TextAlignmentOptions.BottomLeft);
+            _chatText.richText=false;
+            // Mask overflowing lines so the bottom-aligned history keeps the newest message visible.
+            _chatText.gameObject.AddComponent<RectMask2D>();
+            _chatText.overflowMode=TextOverflowModes.Masking;
+            Ui.Anchor(_chatText.rectTransform,.04f,.36f,.96f,.98f);
+            var box = Ui.Panel("MessageInput",_chatBody,Ui.PanelLight);
+            box.gameObject.SetActive(false);
+            Ui.Anchor(box.rectTransform,.03f,.19f,.69f,.34f);
+            var viewport=Ui.Rect("Viewport",box.transform);
+            Ui.Stretch(viewport,4);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            var text=Ui.Label("Message",viewport,"",20,TextAlignmentOptions.Left);
+            Ui.Stretch(text.rectTransform);
+            text.richText=false;
+            _chatInput=box.gameObject.AddComponent<TMP_InputField>();
+            _chatInput.textViewport=viewport;
+            _chatInput.textComponent=text;
+            _chatInput.targetGraphic=box;
+            _chatInput.richText=false;
+            _chatInput.characterLimit=240;
+            _chatInput.onSubmit.AddListener(_=>SubmitChat());
+            box.gameObject.SetActive(true);
+            var send=Ui.Button("SendMessage",_chatBody,"Отпр.",20,out _);
+            Ui.Anchor((RectTransform)send.transform,.70f,.19f,.97f,.34f);
+            send.onClick.AddListener(SubmitChat);
+            var mic=Ui.Button("Microphone",_chatBody,"Включить микрофон",18,out _micLabel);
+            Ui.Anchor((RectTransform)mic.transform,.03f,.02f,.97f,.17f);
+            mic.onClick.AddListener(()=>MicClicked?.Invoke());
+            _chatBody.gameObject.SetActive(false);
+            _chatTab.SetActive(false);
+        }
+
+        private void SubmitChat()
+        {
+            if (SendChat?.Invoke(_chatInput.text)==true) _chatInput.text="";
         }
 
         private static GameObject BuildModal(Transform root, string name, string buttonText, Action onClick, out TextMeshProUGUI text)
@@ -311,7 +392,10 @@ namespace LiarsBar.Presentation.Table
         {
             _playCaption.text = caption;
             if (cards.Count > 0 && (_played.Count == 0 || _played[_played.Count-1].Id != cards[cards.Count-1].Id))
-                foreach (var card in cards) AddPlayed(card);
+            {
+                CoverLastPlay();
+                for (int i=0; i<cards.Count; i++) AddPlayed(cards[i], i, cards.Count);
+            }
         }
 
         public void SetHand(IReadOnlyList<CardModel> cards)
@@ -324,17 +408,38 @@ namespace LiarsBar.Presentation.Table
         {
             foreach (var card in _played) { card.gameObject.SetActive(false); Destroy(card.gameObject); }
             _played.Clear();
+            _faceUpCount = 0;
         }
 
-        private void AddPlayed(CardModel model)
+        private void CoverLastPlay()
         {
-            if (_played.Count > 0) _played[_played.Count-1].ShowBack();
+            for (int i = _played.Count - _faceUpCount; i < _played.Count; i++)
+            {
+                var card = _played[i];
+                card.ShowBack();
+                var rect = (RectTransform)card.transform;
+                Ui.Stretch(rect);
+                rect.localScale = Vector3.one;
+                rect.localRotation = Quaternion.Euler(0, 0, (i % 5 - 2) * 2);
+            }
+            _faceUpCount = 0;
+        }
+
+        private static Rect PlayedSlot(int index, int count)
+        {
+            if (count == 1) return new Rect(0, 0, 1, 1);
+            // The overlap is smaller than the 6% text inset on each face.
+            return new Rect(-.14f + index * .86f, index * .025f, .89f, 1);
+        }
+
+        private void AddPlayed(CardModel model, int index, int count)
+        {
             var card = CardView.Create(_pile);
             card.Bind(model);
-            Ui.Stretch((RectTransform)card.transform);
-            card.transform.localRotation = Quaternion.Euler(0,0,(_played.Count % 5 - 2)*2);
-            ((RectTransform)card.transform).anchoredPosition += Vector2.one * (_played.Count % 7)*2;
+            var slot = PlayedSlot(index, count);
+            Ui.Anchor((RectTransform)card.transform, slot.xMin, slot.yMin, slot.xMax, slot.yMax);
             _played.Add(card);
+            _faceUpCount++;
         }
 
         private void LayoutHand()
@@ -426,19 +531,30 @@ namespace LiarsBar.Presentation.Table
                 _wheel.enabled = true;
                 _wheel.sprite = Back;
                 _wheel.color = Color.white;
-                _token.sizeDelta = _pile.rect.size;
-                foreach (var face in play.Cards)
+                if (_faceUpCount > 0)
                 {
-                    if (_played.Count > 0)
+                    for (float t = 0; t < .12f; t += Time.unscaledDeltaTime)
                     {
-                        var top = _played[_played.Count-1];
-                        for(float t=0;t<.12f;t+=Time.unscaledDeltaTime)
-                        { top.transform.localScale = new Vector3(1-t/.12f,1,1); yield return null; }
-                        top.ShowBack();
-                        top.transform.localScale = Vector3.one;
+                        for (int j = _played.Count - _faceUpCount; j < _played.Count; j++)
+                            _played[j].transform.localScale = new Vector3(1 - t / .12f, 1, 1);
+                        yield return null;
                     }
-                    yield return Fly(SeatPosition(play.SeatId),_pile.TransformPoint(_pile.rect.center),.32f);
-                    AddPlayed(new CardModel(face.Id,face.Text,null,false,false));
+                    CoverLastPlay();
+                }
+                for (int i=0; i<play.Cards.Count; i++)
+                {
+                    var face = play.Cards[i];
+                    if (i > 0)
+                    {
+                        _wheel.enabled = false;
+                        yield return new WaitForSecondsRealtime(1.2f);
+                        _wheel.enabled = true;
+                    }
+                    var slot = PlayedSlot(i, play.Cards.Count);
+                    _token.sizeDelta = Vector2.Scale(_pile.rect.size, slot.size);
+                    var target = Rect.NormalizedToPoint(_pile.rect, slot.center);
+                    yield return Fly(SeatPosition(play.SeatId), _pile.TransformPoint(target), .32f);
+                    AddPlayed(new CardModel(face.Id, face.Text, null, false, false), i, play.Cards.Count);
                 }
                 _wheel.color = Color.white;
                 _token.sizeDelta = new Vector2(90,90);
@@ -546,7 +662,19 @@ namespace LiarsBar.Presentation.Table
         private void Update()
         {
             ResizeTable();
-            _journalProgress = Mathf.MoveTowards(_journalProgress,_journalOpen ? 1 : 0,
+            _chatTab.SetActive(AutoCloseReveal);
+            if (!AutoCloseReveal && _requested == Drawer.Chat) _requested=Drawer.Closed;
+            if (_journalProgress == 0 && _shown != _requested)
+            {
+                _shown=_requested;
+                bool chat=_shown==Drawer.Chat;
+                _chatBody.gameObject.SetActive(chat);
+                _header.gameObject.SetActive(!chat);
+                _log.gameObject.SetActive(!chat);
+            }
+            bool open=_shown==_requested && _shown!=Drawer.Closed;
+            _journalArrow.text=_requested==Drawer.Journal ? ">" : "<";
+            _journalProgress = Mathf.MoveTowards(_journalProgress,open ? 1 : 0,
                 Time.unscaledDeltaTime / Mathf.Max(.01f,Ui.Theme.journalSlideSeconds));
             float travel = (1-_journal.anchorMin.x)*((RectTransform)transform).rect.width;
             _journal.anchoredPosition = new Vector2(travel * (1-Mathf.SmoothStep(0,1,_journalProgress)),0);

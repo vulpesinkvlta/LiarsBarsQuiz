@@ -19,6 +19,8 @@ namespace LiarsBar.Networking
 
     public static class NetworkServices
     {
+        public static IRoomChat AttachChat(UnityEngine.GameObject owner) => owner.AddComponent<RoomChat>();
+
         public static IHostRoomService Attach(UnityEngine.GameObject owner)
         {
             owner.AddComponent<PhotonTransport>();
@@ -199,6 +201,7 @@ namespace LiarsBar.Networking
 
         public void Close()
         {
+            GetComponent<RoomChat>()?.EndRoom();
             StopHost();
             _hostActor = 0;
             _inMatch = false;

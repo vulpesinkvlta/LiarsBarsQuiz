@@ -53,6 +53,12 @@ namespace LiarsBar.Bootstrap
             _view.transform.SetParent(transform, false);
             var navigation = UiRoot.CreateCanvas("Navigation", transform, 1);
             var rooms = LiarsBar.Networking.NetworkServices.Attach(gameObject);
+            var chat = LiarsBar.Networking.NetworkServices.AttachChat(gameObject);
+            _view.SendChat = chat.SendText;
+            _view.MicClicked += chat.ToggleMic;
+            chat.Message += _view.AddChat;
+            chat.MicStatus += _view.SetMicStatus;
+            chat.RoomEnded += _view.ClearChat;
             var router = navigation.gameObject.AddComponent<ScreenRouter>();
             router.OnlineStartRequested += bots =>
             {

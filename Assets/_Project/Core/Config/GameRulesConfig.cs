@@ -34,8 +34,8 @@ namespace LiarsBar.Core.Config
         /// <summary>Таймер хода онлайн, секунды (0 — без таймера).</summary>
         public float OnlineTurnSeconds = 30f;
 
-        public float BotDelayMinSeconds = 1.0f;
-        public float BotDelayMaxSeconds = 2.5f;
+        public float BotDelayMinSeconds = 2.2f;
+        public float BotDelayMaxSeconds = 3.7f;
 
         public static GameRulesConfig Default => new GameRulesConfig();
 
