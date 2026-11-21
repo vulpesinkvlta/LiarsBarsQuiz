@@ -3,11 +3,12 @@ using LiarsBar.Presentation.Common;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace LiarsBar.Presentation.Table
 {
     /// <summary>Карта-факт: текст и (только в своей руке) пометка ✓/✗. Нажатие выбирает карту.</summary>
-    public sealed class CardView : MonoBehaviour
+    public sealed class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         public const float Width = 230f;
         public const float Height = 190f;
@@ -16,6 +17,48 @@ namespace LiarsBar.Presentation.Table
         private Button _button;
         private TextMeshProUGUI _text;
         private TextMeshProUGUI _mark;
+
+        private bool _selected;
+        private int? _pointer;
+        private Vector2 _start;
+        private Vector2 _origin;
+        public bool Dragging => _pointer.HasValue;
+        public event Action Dropped;
+
+        public void OnBeginDrag(PointerEventData e)
+        {
+            e.eligibleForClick = false;
+            if (Dragging || !_selected || !_button.IsInteractable() || e.button != PointerEventData.InputButton.Left) return;
+            if (!LocalPoint(e, e.pressPosition, out _start)) return;
+            _origin = ((RectTransform)transform).anchoredPosition;
+            _pointer = e.pointerId;
+        }
+
+        private bool LocalPoint(PointerEventData e, Vector2 position, out Vector2 point) =>
+            RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)transform.parent,
+                position, e.pressEventCamera, out point);
+
+        public void OnDrag(PointerEventData e)
+        {
+            if (_pointer != e.pointerId || !LocalPoint(e, e.position, out var point)) return;
+            ((RectTransform)transform).anchoredPosition = _origin + point - _start;
+        }
+
+        public void OnEndDrag(PointerEventData e)
+        {
+            if (_pointer != e.pointerId) return;
+            _pointer = null;
+            if (_selected && _button.IsInteractable() &&
+                e.position.y - e.pressPosition.y >= Screen.height * Ui.Theme.playDragScreenFraction)
+                Dropped?.Invoke();
+        }
+
+        private void OnDisable()
+        {
+            _pointer = null;
+            if (transform.parent != null && transform.parent.GetComponent<HandView>() != null)
+                ((RectTransform)transform).anchoredPosition = Vector2.zero;
+        }
 
         public string Id { get; private set; }
         public event Action<string> Clicked;
@@ -42,8 +85,19 @@ namespace LiarsBar.Presentation.Table
             return view;
         }
 
+        public void ShowBack()
+        {
+            _background.sprite = Ui.Theme.cardBack != null ? Ui.Theme.cardBack : Ui.Theme.card;
+            _background.color = Color.white;
+            _text.text = "";
+            _mark.text = "";
+        }
+
         public void Bind(CardModel model)
         {
+            _background.sprite = Ui.Theme.card;
+            _selected = model.Selected;
+            if (Id != model.Id || !_selected || !model.Interactable) _pointer = null;
             Id = model.Id;
             _text.text = model.Text;
             _mark.text = model.Mark == null ? string.Empty : model.Mark.Value ? "<color=#3FA34D>✓</color>" : "<color=#D9534F>✗</color>";

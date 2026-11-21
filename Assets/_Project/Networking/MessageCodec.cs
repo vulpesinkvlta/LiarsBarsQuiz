@@ -24,7 +24,10 @@ namespace LiarsBar.Networking
 
     public static class MessageCodec
     {
+        public const byte StartCode = 1;
         public const byte ActionCode = 2;
+        public const byte EventsCode = 3;
+        public const byte ViewCode = 4;
 
         public static bool TryReadAction(string json, out IGameAction action)
         {

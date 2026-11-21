@@ -100,6 +100,10 @@ namespace Photon.Pun
         /// <param name="target">The object that registers to get callbacks from PUN's LoadBalancingClient.</param>
         public static void AddCallbackTarget(object target)
         {
+            #if UNITY_EDITOR
+            // A script reload during Play Mode can clear the client before callbacks re-register.
+            if (NetworkingClient == null && UnityEngine.Application.isPlaying) StaticReset();
+            #endif
             if (target is PhotonView)
             {
                 return;

@@ -33,6 +33,9 @@ namespace LiarsBar.Presentation.Table
         private bool _gameOverPending;
         private bool _disposed;
         private bool _animating;
+        private bool _submitted;
+        private float _deadline;
+        private int _shownSeconds = -1;
         private UnityEngine.Coroutine _animation;
         public bool IsAnimating => _animating;
         public event Action PresentationChanged;
@@ -80,7 +83,10 @@ namespace LiarsBar.Presentation.Table
 
         private void OnViewChanged(PlayerView view)
         {
+            _submitted = false;
             _current = view;
+            _deadline = UnityEngine.Time.realtimeSinceStartup + view.RemainingTurnSeconds.GetValueOrDefault();
+            UpdateHeader();
             var events = _pendingEvents.ToList();
             _pendingEvents.Clear();
             if (_view is TableView table && events.Count > 0)
@@ -154,14 +160,31 @@ namespace LiarsBar.Presentation.Table
             }
         }
 
+        public void UpdateTimer()
+        {
+            if (_current?.RemainingTurnSeconds == null) return;
+            if (SecondsLeft() != _shownSeconds) UpdateHeader();
+        }
+
+        private int SecondsLeft() => UnityEngine.Mathf.Max(0,
+            UnityEngine.Mathf.CeilToInt(_deadline - UnityEngine.Time.realtimeSinceStartup));
+
+        private void UpdateHeader()
+        {
+            var v = _current;
+            _shownSeconds = SecondsLeft();
+            var timer = v.RemainingTurnSeconds.HasValue ? $" · Ход: {_shownSeconds} с" : "";
+            _view.SetHeader(v.Phase == MatchPhase.Ended
+                ? $"Партия окончена · раундов: {v.RoundNumber}"
+                : $"Раунд {v.RoundNumber} · Предмет: {v.SubjectTitle}{timer}");
+        }
+
         private void Render()
         {
             var v = _current;
             if (v == null) return;
 
-            _view.SetHeader(v.Phase == MatchPhase.Ended
-                ? $"Партия окончена · раундов: {v.RoundNumber}"
-                : $"Раунд {v.RoundNumber} · Предмет: {v.SubjectTitle}");
+
 
             _view.SetSeats(v.Seats.Select(s => new SeatModel(s.SeatId, s.Name, s.CardCount, s.ShotsTaken, s.Chambers, s.IsAlive,
                 v.Phase == MatchPhase.AwaitingAction && s.SeatId == v.CurrentSeat, s.SeatId == v.ViewerSeat)).ToList());
@@ -172,7 +195,7 @@ namespace LiarsBar.Presentation.Table
                 _view.SetTablePlay($"{NameOf(v.LastPlay.SeatId)} положил(а) {CardsWord(v.LastPlay.Cards.Count)}:",
                     v.LastPlay.Cards.Select(c => new CardModel(c.Id, c.Text, null, false, false)).ToList());
 
-            var myTurn = v.IsMyTurn && !_revealOpen;
+            var myTurn = v.IsMyTurn && !_revealOpen && !_submitted;
             var canPick = myTurn && v.CanPlayCards;
             _view.SetHand(v.MyHand.Select(c => new CardModel(c.Id, c.Text, c.IsTrue, _selection.Contains(c.Id), canPick)).ToList());
 
@@ -189,14 +212,14 @@ namespace LiarsBar.Presentation.Table
             if (v.ViewerSeat >= 0 && !IsViewerAlive(v)) return "Вы выбыли — следите за игрой";
             if (!myTurn) return $"Ходит {NameOf(v.CurrentSeat)}…";
             if (v.ForcedAccusation) return $"Карты остались только у {NameOf(v.LastPlay?.SeatId ?? -1)} — нужно крикнуть «Лжец!»";
-            if (v.IsFirstTurnOfRound) return $"Ваш ход: выберите {_minCards}–{_maxCards} карты и нажмите «Сыграть»";
-            return $"Ваш ход: выберите {_minCards}–{_maxCards} карты или крикните «Лжец!»";
+            if (v.IsFirstTurnOfRound) return $"Ваш ход: выберите {_minCards}–{_maxCards} карты и потяните выбранную вверх";
+            return $"Ваш ход: выберите {_minCards}–{_maxCards} карты и потяните вверх или крикните «Лжец!»";
         }
 
         private void OnCardClicked(string id)
         {
             var v = _current;
-            if (v == null || _animating || _revealOpen || !v.CanPlayCards || v.MyHand.All(c => c.Id != id)) return;
+            if (v == null || _submitted || _animating || _revealOpen || !v.CanPlayCards || v.MyHand.All(c => c.Id != id)) return;
 
             if (!_selection.Remove(id))
             {
@@ -209,19 +232,23 @@ namespace LiarsBar.Presentation.Table
         private void OnPlayClicked()
         {
             var v = _current;
-            if (v == null || _animating || _revealOpen || !v.CanPlayCards) return;
+            if (v == null || _submitted || _animating || _revealOpen || !v.CanPlayCards) return;
             if (_selection.Count < _minCards || _selection.Count > _maxCards) return;
 
             var cards = _selection.ToList();
             _selection.Clear();
+            _submitted = true;
+            Render();
             _session.Submit(new PlayCardsAction(v.ViewerSeat, cards));
         }
 
         private void OnLiarClicked()
         {
             var v = _current;
-            if (v == null || _animating || _revealOpen || !v.CanCallLiar) return;
+            if (v == null || _submitted || _animating || _revealOpen || !v.CanCallLiar) return;
             _selection.Clear();
+            _submitted = true;
+            Render();
             _session.Submit(new CallLiarAction(v.ViewerSeat));
         }
 
@@ -263,6 +290,8 @@ namespace LiarsBar.Presentation.Table
 
         private void OnActionRejected(ActionError error)
         {
+            _submitted = false;
+            Render();
             _view.SetHint(error.Code switch
             {
                 ActionErrorCode.NotYourTurn => "Сейчас не ваш ход",

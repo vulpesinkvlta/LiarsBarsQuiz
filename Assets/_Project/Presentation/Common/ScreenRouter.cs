@@ -7,7 +7,7 @@ namespace LiarsBar.Presentation.Common
 {
     public sealed partial class ScreenRouter : MonoBehaviour
     {
-        private enum Screen { Splash, Menu, Rules, Setup, Table, ConfirmExit, GameOver, Online, Lobby }
+        private enum Screen { Splash, Menu, Rules, Setup, Table, ConfirmExit, GameOver, Online, Lobby, RoomLost }
 
         private const string RulesSeen = "LiarsBar.RulesSeen";
         private const string SoundEnabled = "LiarsBar.SoundEnabled";
@@ -140,6 +140,7 @@ namespace LiarsBar.Presentation.Common
 
         private void StartTable(GameModeSettings settings)
         {
+            _table.AutoCloseReveal = false;
             _lastMatch = settings;
             ClearPage();
             _screen = Screen.Table;
@@ -150,7 +151,10 @@ namespace LiarsBar.Presentation.Common
         private void Restart()
         {
             if (_screen != Screen.GameOver) return;
-            if (_lastMatch == null) Leave();
+            if (_lastMatch == null)
+            {
+                if (_rooms.IsHost && OnlineStartRequested?.Invoke(_onlineBots) == true) ShowOnlineTable();
+            }
             else StartTable(_lastMatch);
         }
 
@@ -158,6 +162,7 @@ namespace LiarsBar.Presentation.Common
         {
             ClearPage();
             _screen = Screen.GameOver;
+            _table.SetRematchAvailable(_lastMatch != null || _rooms?.IsHost == true);
             _table.gameObject.SetActive(true);
         }
 

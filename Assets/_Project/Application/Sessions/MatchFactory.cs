@@ -110,6 +110,14 @@ namespace LiarsBar.Application.Sessions
                 followHumanTurn: settings.Mode == GameMode.HotSeat, turnTimer: turnTimer);
         }
 
+        public BotSeat CreateReplacementBot(int seatId)
+        {
+            var random = SeededRandom.CreateUnseeded();
+            var strategy = new HeuristicBotStrategy(_knowledge, random.Next(int.MaxValue), _config.MaxCardsPerPlay);
+            return new BotSeat(seatId, strategy, _profiles[random.Next(_profiles.Count)].Clone(), random,
+                _timer, _config.BotDelayMinSeconds, _config.BotDelayMaxSeconds);
+        }
+
         private static string UniqueName(string name, HashSet<string> taken)
         {
             var result = name;

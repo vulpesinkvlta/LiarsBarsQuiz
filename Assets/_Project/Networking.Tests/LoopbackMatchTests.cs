@@ -55,6 +55,7 @@ namespace LiarsBar.Networking.Tests
             var engine = new MatchEngine(rules, subjects, new SeededRandom(47));
             var settings = new MatchSettings(roster.Select((p, i) => new SeatSetup(i, p.Value)).ToList()) { FirstSeat = 0 };
             var controllers = new Dictionary<int, ISeatController> { [0] = new LocalHumanSeat(0, roster[0].Value) };
+            var guests = new Dictionary<int, RemoteMatchSession>();
             var views = new Dictionary<int, PlayerView>();
             var publicEvents = new Dictionary<int, List<string>>();
             var seatIds = new Dictionary<int, int>();
@@ -72,6 +73,10 @@ namespace LiarsBar.Networking.Tests
                         case MatchStartMessage start:
                             seatIds.Add(actor, start.ActorSeats[actor]);
                             Assert.AreEqual(seat, seatIds[actor]);
+                            var guest = new RemoteMatchSession(peers[actor], host, seat);
+                            guests.Add(actor, guest);
+                            guest.ViewChanged += view => views[actor] = view;
+                            guest.Start();
                             break;
                         case EventsMessage batch:
                             Assert.IsTrue(seatIds.ContainsKey(actor));
@@ -82,7 +87,7 @@ namespace LiarsBar.Networking.Tests
                             Assert.AreEqual(seatIds[actor], snapshot.View.ViewerSeat);
                             CollectionAssert.AreEqual(engine.State.GetPlayer(seat).Hand.Cards.Select(c => c.Id),
                                 snapshot.View.MyHand.Select(c => c.Id));
-                            views[actor] = snapshot.View;
+
                             break;
                     }
                 };
@@ -105,9 +110,7 @@ namespace LiarsBar.Networking.Tests
                     {
                         var player = views.Single(p => p.Value.IsMyTurn);
                         turns.Add(player.Key);
-                        var action = new ActionMessage { Action = LocalMatchSession.FallbackAction(player.Value) };
-                        var json = MessageCodec.Encode(action, out var code);
-                        peers[player.Key].SendToHost(code, json);
+                        guests[player.Key].Submit(LocalMatchSession.FallbackAction(player.Value));
                     }
                     Assert.AreEqual(before + 1, publicEvents[actors[1]].Count);
                 }
@@ -119,6 +122,7 @@ namespace LiarsBar.Networking.Tests
                     Assert.AreEqual(session.State.WinnerSeat, winners[actor]);
                     Assert.AreEqual(MatchPhase.Ended, views[actor].Phase);
                     Assert.AreEqual(winners[actor], views[actor].WinnerSeat);
+                    guests[actor].Dispose();
                 }
             }
         }

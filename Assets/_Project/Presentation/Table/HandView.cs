@@ -9,6 +9,7 @@ namespace LiarsBar.Presentation.Table
     {
         private readonly List<CardView> _cards = new List<CardView>();
 
+        public event Action Dropped;
         public event Action<string> CardClicked;
 
         internal System.Collections.IEnumerator FlipRevealed(CardModel model)
@@ -34,6 +35,7 @@ namespace LiarsBar.Presentation.Table
             while (_cards.Count < models.Count)
             {
                 var card = CardView.Create(transform);
+                card.Dropped += () => Dropped?.Invoke();
                 card.Clicked += id => CardClicked?.Invoke(id);
                 _cards.Add(card);
             }

@@ -8,7 +8,13 @@ namespace LiarsBar.Presentation.Common
     {
         public TMP_FontAsset font;
         public Sprite backdrop, felt, card, portrait, revolver, shotFlash;
+        public Sprite cardBack;
         public AudioClip click, cards, liar, spin, empty, shot, victory;
+        [Header("Стол и жесты")]
+        [Range(.12f,.45f)] public float journalSlideSeconds = .24f;
+        [Range(.04f,.24f)] public float playDragScreenFraction = .10f;
+        [Range(.22f,.65f)] public float drumScreenFraction = .43f;
+        [Range(0f,.8f)] public float rouletteDim = .43f;
         public Color Background = new Color(0.16f, 0.16f, 0.17f);
         public Color PanelColor = new Color(0.26f, 0.26f, 0.28f);
         public Color PanelLight = new Color(0.36f, 0.36f, 0.38f);

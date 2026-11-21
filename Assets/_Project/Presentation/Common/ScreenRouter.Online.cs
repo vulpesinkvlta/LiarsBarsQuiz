@@ -13,6 +13,22 @@ namespace LiarsBar.Presentation.Common
         private string _codeInput = "";
         public event Func<int, bool> OnlineStartRequested;
 
+        public void ShowReplacement(string name)
+        {
+            var notice = Ui.Label("GuestLeft", transform, $"{name} ушёл, его заменил бот", 28);
+            notice.richText = false;
+            notice.raycastTarget = false;
+            Ui.Anchor(notice.rectTransform, .04f, .84f, .96f, .94f);
+            Destroy(notice.gameObject, 4f);
+        }
+
+        public void ShowRoomLost(string message)
+        {
+            _leave();
+            Page(Screen.RoomLost, message);
+            Button("В меню", .42f, Menu);
+        }
+
         private void StartOnline()
         {
             if (_screen != Screen.Lobby) return;
@@ -27,6 +43,13 @@ namespace LiarsBar.Presentation.Common
                 if (!started) _table.gameObject.SetActive(false);
             }
             if (!started) return;
+            ShowOnlineTable();
+        }
+
+        public void ShowOnlineTable()
+        {
+            _table.gameObject.SetActive(true);
+            _table.AutoCloseReveal = true;
             _lastMatch = null;
             ClearPage();
             _screen = Screen.Table;

@@ -33,6 +33,7 @@ namespace LiarsBar.Bootstrap
         private Subject _lastSubject;
         private TableView _view;
         private LocalMatchSession _session;
+        private IMatchSession _activeSession;
         private TablePresenter _presenter;
 
         private void Awake()
@@ -60,6 +61,16 @@ namespace LiarsBar.Bootstrap
                 StartSession(session, false);
                 return true;
             };
+            rooms.GuestStarted += (session, rules) =>
+            {
+                DisposeMatch();
+                router.ShowOnlineTable();
+                _view.ResetView();
+                BindTable(session, rules);
+                session.Start();
+            };
+            rooms.GuestReplaced += router.ShowReplacement;
+            rooms.RoomLost += router.ShowRoomLost;
             router.Initialize(_view, StartMatch, DisposeMatch, _playerName, _botCount, rooms);
         }
 
@@ -74,7 +85,7 @@ namespace LiarsBar.Bootstrap
             _session = session;
             _session.ControllerActionReplaced += (seat, error) =>
                 Debug.LogWarning($"[Session] Seat {seat}: action rejected ({error}), fallback move used.");
-            _presenter = new TablePresenter(_session, _view, _config.MinCardsPerPlay, _config.MaxCardsPerPlay, this);
+            BindTable(session, _config);
             if (hotSeat)
             {
                 _session.ViewChanged += UpdatePassDevice;
@@ -83,6 +94,14 @@ namespace LiarsBar.Bootstrap
             }
             _session.Start(_usedSubjects, _lastSubject);
         }
+
+        private void BindTable(IMatchSession session, GameRulesConfig rules)
+        {
+            _activeSession = session;
+            _presenter = new TablePresenter(session, _view, rules.MinCardsPerPlay, rules.MaxCardsPerPlay, this);
+        }
+
+        private void Update() => _presenter?.UpdateTimer();
 
         private void ConfirmPass(int seat) => _session.ConfirmHumanTurn(seat);
 
@@ -117,7 +136,8 @@ namespace LiarsBar.Bootstrap
             }
             _presenter?.Dispose();
             _presenter = null;
-            _session?.Dispose();
+            _activeSession?.Dispose();
+            _activeSession = null;
             _session = null;
         }
 

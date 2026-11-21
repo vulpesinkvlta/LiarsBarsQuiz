@@ -76,7 +76,7 @@ namespace LiarsBar.Presentation.Tests
                     string title = pass.Find("Recipient").GetComponent<TMP_Text>().text;
                     string recipient = names.Single(n => title == $"Передайте устройство: {n}");
                     seen.Add(recipient);
-                    Assert.IsFalse(table.Find("Play").gameObject.activeSelf);
+                    Assert.IsNull(table.Find("Play"));
                     Assert.IsFalse(table.Find("Liar").gameObject.activeSelf);
                     Press(pass.Find("Confirm"));
                     Assert.IsFalse(pass.gameObject.activeSelf);
@@ -87,7 +87,14 @@ namespace LiarsBar.Presentation.Tests
                     {
                         Assert.IsNotEmpty(cards);
                         Press(cards[0].transform);
-                        Press(table.Find("Play"));
+                        var drag = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current)
+                        {
+                            pressPosition = RectTransformUtility.WorldToScreenPoint(null,cards[0].transform.position)
+                        };
+                        drag.position = drag.pressPosition + Vector2.up * Screen.height * .3f;
+                        cards[0].OnBeginDrag(drag);
+                        cards[0].OnDrag(drag);
+                        cards[0].OnEndDrag(drag);
                     }
                     Assert.IsEmpty(hand.GetComponentsInChildren<CardView>());
                 }
